@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "YT Stealth Blocker",
+  "version": "1.0",
+  "description": "Recruiter-ready DOM observer and element blocker.",
+  "permissions": [
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}

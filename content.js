@@ -1,0 +1,1 @@
+console.log("YT Stealth Blocker: Injected and watching the DOM!");

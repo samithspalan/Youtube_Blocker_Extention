@@ -1,122 +1,81 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useEffect } from 'react'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [channels, setChannels] = useState([]);
+  const [input, setInput] = useState('');
+
+  // 1. Hydrate state from Chrome Storage on component mount
+  useEffect(() => {
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.local.get({ blockedChannels: [] }, (result) => {
+        setChannels(result.blockedChannels);
+      });
+    }
+  }, []);
+const handleBlock = async () => {
+    // 1. Normalize the input to lowercase (matching our Content Script logic)
+    const channelName = input.trim().toLowerCase(); 
+    
+    if (!channelName) return;
+    if (channels.includes(channelName)) return; // Prevent duplicates
+
+    const updatedList = [...channels, channelName];
+    
+    // 2. Local State: Save to Chrome Storage FIRST
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.local.set({ blockedChannels: updatedList }, () => {
+        setChannels(updatedList);
+        setInput('');
+      });
+    } else {
+      setChannels(updatedList);
+      setInput('');
+    }
+
+    // 3. Cloud State: Sync with your Express Backend
+    try {
+      const response = await fetch('http://localhost:5000/api/blocks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ handle: channelName })
+      });
+      
+      if (response.ok) {
+        console.log(`Successfully synced ${channelName} to backend!`);
+      }
+    } catch (error) {
+      // If the backend is offline, the user doesn't notice. The local extension still works!
+      console.error("Backend sync failed. Server might be down:", error);
+    }
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+    <div style={{ width: '250px', padding: '12px', fontFamily: 'sans-serif' }}>
+      <h3 style={{ marginTop: 0 }}>YT Stealth Blocker</h3>
+      
+      <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
+        <input 
+          style={{ width: '100%', padding: '6px' }}
+          value={input} 
+          onChange={(e) => setInput(e.target.value)} 
+          placeholder="Enter channel name..." 
+        />
+        <button 
+          style={{ padding: '6px 10px', background: '#cc0000', color: 'white', border: 'none', cursor: 'pointer' }}
+          onClick={handleBlock}
         >
-          Count is {count}
+          Block
         </button>
-      </section>
+      </div>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <h4 style={{ margin: '10px 0 5px 0' }}>Target List</h4>
+      <ul style={{ paddingLeft: '20px', margin: 0, maxHeight: '150px', overflowY: 'auto' }}>
+        {channels.map((ch, i) => <li key={i}>{ch}</li>)}
+      </ul>
+    </div>
   )
 }
 
-export default App
+export default App;

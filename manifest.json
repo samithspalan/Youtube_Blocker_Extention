@@ -7,8 +7,8 @@
     "storage"
   ],
   "action": {
-    "default_popup": "popup.html"
-  },
+  "default_popup": "react-popup/dist/index.html"
+},
   "content_scripts": [
     {
       "matches": ["*://*.youtube.com/*"],

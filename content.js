@@ -22,12 +22,25 @@ const VIDEO_SELECTOR = 'ytd-rich-item-renderer';
 
 function scanAndHide() {
     const videoCards = document.querySelectorAll(VIDEO_SELECTOR);
+    
     videoCards.forEach(card => {
-        const channelElement = card.querySelector('ytd-channel-name a');
-        if (channelElement) {
-            const channelName = channelElement.textContent.trim();
-            if (blockedChannels.includes(channelName)) {
-                card.style.display = 'none';
+        // Find the anchor tag (the actual link) inside the channel name component
+        const channelLinkElement = card.querySelector('ytd-channel-name a.yt-simple-endpoint');
+        
+        if (channelLinkElement) {
+            // This will grab the relative URL, e.g., "/@MrBeast"
+            const urlPath = channelLinkElement.getAttribute('href'); 
+            
+            if (urlPath && urlPath.includes('/@')) {
+                // Extract just the handle by splitting the string at the '/'
+                // "/@MrBeast" becomes ["", "@MrBeast"]
+                const handle = urlPath.split('/')[1].toLowerCase(); 
+                
+                // We check against our block list (assuming the React popup saves handles in lowercase)
+                if (blockedChannels.includes(handle)) {
+                    card.style.display = 'none';
+                    console.log(`Mission Accomplished: Blocked handle ${handle}`);
+                }
             }
         }
     });

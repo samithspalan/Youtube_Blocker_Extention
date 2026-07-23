@@ -1,57 +1,59 @@
-console.log("YT Stealth Blocker: Observer Engine Started...");
+console.log("🚨 [Stealth Blocker] SCRIPT INJECTED SUCCESSFULLY!");
 
-let blockedChannels = [];
+let blockedList = [];
 
-// 1. Initial Fetch from Chrome Storage
-chrome.storage.local.get({ blockedChannels: [] }, (result) => {
-    blockedChannels = result.blockedChannels;
-    console.log("Loaded block list from storage:", blockedChannels);
-});
-
-// 2. Real-time Reactive Listener for storage updates
-chrome.storage.onChanged.addListener((changes, namespace) => {
-    if (namespace === 'local' && changes.blockedChannels) {
-        blockedChannels = changes.blockedChannels.newValue || [];
-        console.log("Updated active block list:", blockedChannels);
-        // Re-evaluate current DOM with new rules
-        scanAndHide();
+// 1. Initial Load: See exactly what is inside Chrome Storage
+chrome.storage.local.get(['blockedChannels'], (result) => {
+    console.log("📦 [Stealth Blocker] Raw Storage Data:", result);
+    
+    if (result.blockedChannels && result.blockedChannels.length > 0) {
+        blockedList = result.blockedChannels.map(h => h.toLowerCase().trim());
+        console.log("🎯 [Stealth Blocker] Armed Targets:", blockedList);
+        scrubPage();
+    } else {
+        console.log("⚠️ [Stealth Blocker] Storage is empty or undefined!");
     }
 });
 
-const VIDEO_SELECTOR = 'ytd-rich-item-renderer';
+// 2. Live Sync
+chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local' && changes.blockedChannels) {
+        blockedList = changes.blockedChannels.newValue.map(h => h.toLowerCase().trim());
+        console.log("🔄 [Stealth Blocker] Targets updated:", blockedList);
+        scrubPage();
+    }
+});
 
-function scanAndHide() {
-    const videoCards = document.querySelectorAll(VIDEO_SELECTOR);
-    
-    videoCards.forEach(card => {
-        // Find the anchor tag (the actual link) inside the channel name component
-        const channelLinkElement = card.querySelector('ytd-channel-name a.yt-simple-endpoint');
+// 3. The Core Scrubbing Engine
+function scrubPage() {
+    if (blockedList.length === 0) return;
+
+    const elements = document.querySelectorAll('ytd-rich-item-renderer, ytd-video-renderer, ytd-compact-video-renderer, ytd-reel-item-renderer, ytd-channel-renderer');
+
+    elements.forEach(el => {
+        const channelLinks = el.querySelectorAll('a[href*="@"]');
         
-        if (channelLinkElement) {
-            // This will grab the relative URL, e.g., "/@MrBeast"
-            const urlPath = channelLinkElement.getAttribute('href'); 
+        for (let link of channelLinks) {
+            let href = link.getAttribute('href') || '';
+            let match = href.match(/@([^\/\?]+)/); 
             
-            if (urlPath && urlPath.includes('/@')) {
-                // Extract just the handle by splitting the string at the '/'
-                // "/@MrBeast" becomes ["", "@MrBeast"]
-                const handle = urlPath.split('/')[1].toLowerCase(); 
+            if (match && match[1]) {
+                let handle = match[1].toLowerCase();
                 
-                // We check against our block list (assuming the React popup saves handles in lowercase)
-                if (blockedChannels.includes(handle)) {
-                    card.style.display = 'none';
-                    console.log(`Mission Accomplished: Blocked handle ${handle}`);
+                if (blockedList.includes(handle)) {
+                    console.log(`💥 [Stealth Blocker] NUKING VIDEO FROM: @${handle}`);
+                    el.remove(); 
+                    break; 
                 }
             }
         }
     });
 }
 
-const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-        if (mutation.addedNodes.length > 0) {
-            scanAndHide();
-        }
-    }
+// 4. The MutationObserver
+const observer = new MutationObserver(() => {
+    scrubPage();
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
+console.log("👀 [Stealth Blocker] DOM Observer Active...");

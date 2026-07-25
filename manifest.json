@@ -3,13 +3,24 @@
   "name": "YT Stealth Blocker",
   "version": "1.0",
   "description": "Recruiter-ready DOM observer and element blocker.",
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
   "permissions": [
     "storage"
   ],
+  "host_permissions": [
+    "*://suggestqueries.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
-  "default_popup": "react-popup/dist/index.html"
-},
-"options_page": "react-popup/dist/index.html",
+    "default_popup": "react-popup/dist/index.html"
+  },
+  "options_page": "react-popup/dist/index.html",
   "content_scripts": [
     {
       "matches": ["*://*.youtube.com/*"],

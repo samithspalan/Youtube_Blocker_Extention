@@ -6,6 +6,18 @@ export default function App() {
   const [suggestions, setSuggestions] = useState([]);
   const [dbStatus, setDbStatus] = useState('Connected');
   const [isPopup, setIsPopup] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved;
+    return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     // Determine if we are in the small toolbar popup
@@ -216,9 +228,20 @@ export default function App() {
           </div>
           <div style={styles.navSectionBottom}>
             <p style={styles.navSectionTitle}>SYSTEM</p>
-            <a style={styles.navItem}>
+            <a style={styles.navItem} onClick={() => setShowSettings(!showSettings)}>
               <span style={styles.navIcon}>⚙️</span> Settings
             </a>
+            {showSettings && (
+              <div style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Theme</span>
+                <button 
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  style={{ background: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  {theme === 'dark' ? '🌙 Dark' : '☀️ Light'}
+                </button>
+              </div>
+            )}
           </div>
         </nav>
       </div>

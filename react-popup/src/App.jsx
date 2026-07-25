@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 
+// Guard: true only when running as a real Chrome extension
+const isChromeExtension = typeof chrome !== 'undefined' && !!chrome.storage;
+
 export default function App() {
   const [channels, setChannels] = useState([]);
   const [input, setInput] = useState('');
@@ -7,7 +10,7 @@ export default function App() {
   const [dbStatus, setDbStatus] = useState('Connected');
   const [isPopup, setIsPopup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  
+
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('theme');
     if (saved) return saved;
@@ -20,184 +23,101 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
-    // Determine if we are in the small toolbar popup
-    const checkIsPopup = () => {
-      // Chrome extension popups are usually narrow. We use < 600 as the breakpoint.
-      setIsPopup(window.innerWidth < 600);
-    };
-    
-    checkIsPopup();
-    
-    window.addEventListener('resize', checkIsPopup);
-    return () => window.removeEventListener('resize', checkIsPopup);
+    if (window.innerWidth < 600) setIsPopup(true);
   }, []);
 
-  // 1. Load the initial blocked list
   useEffect(() => {
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.local.get(['blockedChannels'], (result) => {
-        if (result.blockedChannels) {
-          setChannels(result.blockedChannels);
-        }
-      });
+    if (!isChromeExtension) return;
+    chrome.storage.local.get(['blockedChannels'], (result) => {
+      if (result.blockedChannels) setChannels(result.blockedChannels);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (input.trim().length > 1) {
+      if (isChromeExtension) {
+        chrome.runtime.sendMessage({ action: 'fetchSuggestions', query: input }, (response) => {
+          setSuggestions(response?.suggestions ?? []);
+        });
+      } else {
+        setSuggestions([`${input} (mock 1)`, `${input} (mock 2)`]);
+      }
+    } else {
+      setSuggestions([]);
     }
-  }, []);
-
-  // 2. The Autocomplete Engine (via background service worker)
-  useEffect(() => {
-    const fetchSuggestions = () => {
-      if (input.trim().length < 2) {
-        setSuggestions([]);
-        return;
-      }
-      
-      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-        chrome.runtime.sendMessage(
-          { action: 'fetchSuggestions', query: input },
-          (response) => {
-            if (chrome.runtime.lastError) {
-                console.error("Chrome runtime error:", chrome.runtime.lastError);
-                return;
-            }
-            if (response && response.success && response.data) {
-              // Google suggestions are in index 1 of the returned JSON array
-              setSuggestions(response.data[1] || []);
-            } else {
-              console.error("Failed to fetch suggestions from background.");
-            }
-          }
-        );
-      }
-    };
-
-    // Debounce: Wait 300ms after the user stops typing
-    const delayDebounce = setTimeout(() => {
-      fetchSuggestions();
-    }, 300);
-
-    return () => clearTimeout(delayDebounce);
   }, [input]);
 
-  // 3. Handle the Block action
-  const handleBlock = async (channelName) => {
-    const target = channelName.trim().toLowerCase(); 
-    
-    if (!target) return;
-    
-    // Support legacy strings array and new object array
-    const isDuplicate = channels.some(c => {
-      if (typeof c === 'string') return c.toLowerCase() === target;
-      return c.name.toLowerCase() === target;
-    });
-
-    if (isDuplicate) return;
-
-    const newEntry = { name: target, dateAdded: new Date().toLocaleDateString() };
-    const updatedList = [...channels, newEntry];
-    saveToStorage(updatedList);
-    
+  const handleBlock = (targetChannel) => {
+    if (!targetChannel.trim()) return;
+    const newChannels = [...channels, targetChannel];
+    setChannels(newChannels);
+    if (isChromeExtension) chrome.storage.local.set({ blockedChannels: newChannels });
     setInput('');
-    setSuggestions([]); // Close dropdown
-
-    // Sync with MongoDB backend (fails gracefully if offline)
-    try {
-      await fetch('http://localhost:5000/api/blocks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handle: target })
-      });
-      setDbStatus('Connected');
-    } catch (error) {
-      console.log("Backend offline, saving locally only.");
-      setDbStatus('Offline');
-    }
+    setSuggestions([]);
   };
 
-  // 4. Handle the Remove action
-  const handleRemove = (targetToRemove) => {
-    const updatedList = channels.filter(ch => {
-      if (typeof ch === 'string') return ch !== targetToRemove;
-      return ch.name !== targetToRemove;
-    });
-    saveToStorage(updatedList);
-  };
-
-  // Helper to save state and Chrome storage simultaneously
-  const saveToStorage = (updatedList) => {
-    setChannels(updatedList);
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.local.set({ blockedChannels: updatedList });
-    }
+  const removeChannel = (channelToRemove) => {
+    const newChannels = channels.filter(c => c !== channelToRemove);
+    setChannels(newChannels);
+    if (isChromeExtension) chrome.storage.local.set({ blockedChannels: newChannels });
   };
 
   const openDashboard = () => {
-    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.openOptionsPage) {
-      chrome.runtime.openOptionsPage();
-      // Only close if it's actually in a popup window context
-      if (typeof window !== 'undefined' && window.close) {
-        window.close();
-      }
-    } else {
-      window.open('/index.html');
-    }
+    if (isChromeExtension) chrome.tabs.create({ url: chrome.runtime.getURL('react-popup/dist/index.html') });
   };
 
-  // Map legacy string entries to objects for display
-  const normalizedChannels = channels.map(ch => typeof ch === 'string' ? { name: ch, dateAdded: 'Legacy' } : ch);
+  const normalizedChannels = channels.map(c => typeof c === 'string' ? c : c.name || 'Unknown');
 
+  // ============================================
+  // TOOLBAR POPUP VIEW
+  // ============================================
   if (isPopup) {
     return (
-      <div style={styles.popupContainer}>
+      <div className="flex flex-col w-[350px] h-[400px] bg-bg-dark font-sans">
         {/* Header */}
-        <div style={styles.popupHeader}>
-          <h2 style={styles.popupTitle}>🛡️ YT Stealth Blocker</h2>
-          <span style={styles.popupStatus}>🟢 Active</span>
+        <div className="flex justify-between items-center px-5 py-[15px] bg-bg-sidebar border-b border-border-theme">
+          <h2 className="m-0 text-[15px] font-semibold text-text-primary">🛡️ YT Stealth Blocker</h2>
+          <span className="text-xs font-semibold text-text-secondary">🟢 Active</span>
         </div>
 
-        {/* Content */}
-        <div style={styles.popupContent}>
-          {/* Quick Action: Search Bar */}
-          <div style={styles.searchWrapper}>
-            <div style={styles.searchContainer}>
-              <input 
+        <div className="flex-1 p-5 flex flex-col">
+          {/* Search */}
+          <div className="relative w-full">
+            <div className="flex items-center bg-bg-sidebar border border-border-theme rounded-md overflow-hidden">
+              <span className="px-2.5 text-text-secondary">🔍</span>
+              <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Search channel..."
-                style={styles.popupSearchInput}
+                placeholder="Target channel to block..."
+                className="flex-1 bg-transparent border-none text-text-primary py-2.5 outline-none text-[13px]"
               />
-              <button 
+              <button
                 onClick={() => handleBlock(input)}
-                style={styles.blockButton}
+                className="bg-accent-red text-white border-none px-4 py-2 cursor-pointer font-bold text-[13px]"
               >
                 Block
               </button>
             </div>
-
-            {/* Suggestions Dropdown */}
             {suggestions.length > 0 && (
-              <ul style={styles.dropdown}>
-                {suggestions.map((suggestion, idx) => (
-                  <li 
-                    key={idx} 
-                    onClick={() => handleBlock(suggestion)}
-                    style={styles.dropdownItem}
-                    onMouseOver={(e) => e.target.style.background = 'var(--bg-hover)'}
-                    onMouseOut={(e) => e.target.style.background = 'transparent'}
-                  >
-                    {suggestion}
+              <ul className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border-theme rounded-md p-0 m-0 list-none z-10 max-h-[200px] overflow-y-auto shadow-lg">
+                {suggestions.map((s, i) => (
+                  <li key={i} onClick={() => handleBlock(s)} className="p-3 cursor-pointer border-b border-border-theme text-[14px] text-text-primary hover:bg-bg-hover">
+                    {s}
                   </li>
                 ))}
               </ul>
             )}
           </div>
 
-          {/* Quick Stats */}
-          <div style={styles.popupStats}>
-            <span style={styles.popupStatBadge}>{normalizedChannels.length} Targets Active</span>
+          {/* Stats Badge */}
+          <div className="flex justify-center my-8">
+            <span className="bg-bg-sidebar px-4 py-2 rounded-full text-[13px] font-semibold border border-border-theme text-accent-blue">
+              {normalizedChannels.length} Targets Active
+            </span>
           </div>
 
-          {/* Footer Button */}
-          <button onClick={openDashboard} style={styles.popupFooterBtn}>
+          {/* Open Dashboard */}
+          <button onClick={openDashboard} className="mt-auto w-full py-3 bg-accent-blue text-white border-none rounded-md cursor-pointer font-semibold text-sm hover:opacity-90 transition-opacity">
             🚀 Open Full Dashboard
           </button>
         </div>
@@ -209,34 +129,49 @@ export default function App() {
   // FULL-SCREEN DASHBOARD VIEW
   // ============================================
   return (
-    <div style={styles.container}>
-      {/* Sidebar */}
-      <div style={styles.sidebar}>
-        <div style={styles.logoContainer}>
-          <div style={styles.logoIcon}>🛡️</div>
-          <h2 style={styles.logoTitle}>YT Stealth</h2>
+    <div
+      className="flex w-screen h-screen min-w-[800px] font-sans"
+      style={{ background: 'radial-gradient(circle at 5% 20%, rgba(47,129,247,0.15), transparent 40%), radial-gradient(circle at 95% 80%, rgba(46,160,67,0.15), transparent 40%), var(--bg-dark)' }}
+    >
+      {/* ---- SIDEBAR ---- */}
+      <div
+        className="flex flex-col w-[240px] m-4 rounded-2xl py-5 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
+        style={{ backdropFilter: 'blur(20px)', background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)' }}
+      >
+        {/* Logo */}
+        <div className="flex items-center px-5 pb-5 border-b border-border-theme">
+          <span className="text-2xl mr-2.5">🛡️</span>
+          <h2 className="m-0 text-base font-semibold text-text-primary">YT Stealth</h2>
         </div>
-        <nav style={styles.nav}>
-          <div style={styles.navSection}>
-            <p style={styles.navSectionTitle}>MAIN</p>
-            <a style={{...styles.navItem, ...styles.navItemActive}}>
-              <span style={styles.navIcon}>⌘</span> Command Center
+
+        {/* Nav */}
+        <nav className="flex flex-col flex-1 overflow-y-auto py-5">
+          {/* MAIN section */}
+          <div className="mb-5">
+            <p className="text-[11px] font-bold text-text-secondary px-5 mb-2.5 tracking-widest">MAIN</p>
+            <a className="flex items-center px-5 py-2.5 text-sm text-text-primary bg-bg-hover border-l-[3px] border-accent-blue cursor-pointer no-underline">
+              <span className="mr-3">⌘</span> Command Center
             </a>
-            <a style={styles.navItem}>
-              <span style={styles.navIcon}>📊</span> Analytics
+            <a className="flex items-center px-5 py-2.5 text-sm text-text-secondary cursor-pointer no-underline hover:bg-bg-hover">
+              <span className="mr-3">📊</span> Analytics
             </a>
           </div>
-          <div style={styles.navSectionBottom}>
-            <p style={styles.navSectionTitle}>SYSTEM</p>
-            <a style={styles.navItem} onClick={() => setShowSettings(!showSettings)}>
-              <span style={styles.navIcon}>⚙️</span> Settings
+
+          {/* SYSTEM section — pushed to bottom */}
+          <div className="mt-auto mb-5">
+            <p className="text-[11px] font-bold text-text-secondary px-5 mb-2.5 tracking-widest">SYSTEM</p>
+            <a
+              className="flex items-center px-5 py-2.5 text-sm text-text-secondary cursor-pointer no-underline hover:bg-bg-hover"
+              onClick={() => setShowSettings(!showSettings)}
+            >
+              <span className="mr-3">⚙️</span> Settings
             </a>
             {showSettings && (
-              <div style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Theme</span>
-                <button 
+              <div className="flex items-center justify-between px-5 py-2.5">
+                <span className="text-[13px] text-text-secondary">Theme</span>
+                <button
                   onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  style={{ background: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer' }}
+                  className="bg-bg-hover text-text-primary border border-border-theme rounded px-2 py-1 text-xs cursor-pointer hover:opacity-80"
                 >
                   {theme === 'dark' ? '🌙 Dark' : '☀️ Light'}
                 </button>
@@ -246,41 +181,31 @@ export default function App() {
         </nav>
       </div>
 
-      {/* Main Content */}
-      <div style={styles.mainContent}>
-        <div style={styles.header}>
-          <h1 style={styles.pageTitle}>Command Center</h1>
-          
-          {/* Search Bar Wrapper */}
-          <div style={styles.searchWrapper}>
-            <div style={styles.searchContainer}>
-              <span style={styles.searchIcon}>🔍</span>
-              <input 
+      {/* ---- MAIN CONTENT ---- */}
+      <div className="flex-1 flex flex-col overflow-y-auto py-[30px] px-10">
+        {/* Header row */}
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="m-0 text-2xl font-semibold text-text-primary">Command Center</h1>
+
+          {/* Search bar */}
+          <div className="relative w-full max-w-[350px]">
+            <div className="flex items-center bg-bg-sidebar border border-border-theme rounded-md overflow-hidden">
+              <span className="px-2.5 text-text-secondary">🔍</span>
+              <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Search channel to block..."
-                style={styles.searchInput}
+                className="flex-1 bg-transparent border-none text-text-primary py-2.5 outline-none text-sm"
               />
-              <button 
-                onClick={() => handleBlock(input)}
-                style={styles.blockButton}
-              >
+              <button onClick={() => handleBlock(input)} className="bg-accent-red text-white border-none px-4 py-2 cursor-pointer font-bold text-[13px]">
                 Block Target
               </button>
             </div>
-
-            {/* Suggestions Dropdown */}
             {suggestions.length > 0 && (
-              <ul style={styles.dropdown}>
-                {suggestions.map((suggestion, idx) => (
-                  <li 
-                    key={idx} 
-                    onClick={() => handleBlock(suggestion)}
-                    style={styles.dropdownItem}
-                    onMouseOver={(e) => e.target.style.background = 'var(--bg-hover)'}
-                    onMouseOut={(e) => e.target.style.background = 'transparent'}
-                  >
-                    {suggestion}
+              <ul className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border-theme rounded-md p-0 list-none z-10 max-h-[200px] overflow-y-auto shadow-lg">
+                {suggestions.map((s, i) => (
+                  <li key={i} onClick={() => handleBlock(s)} className="p-3 cursor-pointer border-b border-border-theme text-sm text-text-primary hover:bg-bg-hover">
+                    {s}
                   </li>
                 ))}
               </ul>
@@ -289,64 +214,65 @@ export default function App() {
         </div>
 
         {/* KPI Cards */}
-        <div style={styles.kpiContainer}>
-          <div style={styles.kpiCard}>
-            <h3 style={styles.kpiTitle}>Active Targets</h3>
-            <p style={styles.kpiValue}>{normalizedChannels.length}</p>
-          </div>
-          <div style={styles.kpiCard}>
-            <h3 style={styles.kpiTitle}>Videos Nuked</h3>
-            <p style={styles.kpiValue}>0</p>
-          </div>
-          <div style={styles.kpiCard}>
-            <h3 style={styles.kpiTitle}>DB Status</h3>
-            <p style={{...styles.kpiValue, color: dbStatus === 'Connected' ? 'var(--accent-green)' : 'var(--accent-red)'}}>{dbStatus}</p>
-          </div>
+        <div className="grid grid-cols-3 gap-5 mb-8">
+          {[
+            { label: 'Active Targets', value: normalizedChannels.length, color: 'text-text-primary' },
+            { label: 'Videos Nuked', value: 0, color: 'text-text-primary' },
+            { label: 'DB Status', value: dbStatus, color: dbStatus === 'Connected' ? 'text-accent-green' : 'text-accent-red' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="bg-bg-card border border-border-theme rounded-lg p-5 flex flex-col justify-center">
+              <h3 className="m-0 mb-2.5 text-[13px] text-text-secondary font-medium">{label}</h3>
+              <p className={`m-0 text-[28px] font-bold ${color}`}>{value}</p>
+            </div>
+          ))}
         </div>
 
         {/* Chart Placeholder */}
-        <div style={styles.chartContainer}>
-          <div style={styles.chartHeader}>
-            <h3 style={styles.chartTitle}>Distractions Blocked Over Time</h3>
-            <div style={styles.chartOptions}>...</div>
+        <div className="bg-bg-card border border-border-theme rounded-lg p-5 mb-8 h-[250px] flex flex-col">
+          <div className="flex justify-between mb-5">
+            <h3 className="m-0 text-base font-semibold text-text-primary">Distractions Blocked Over Time</h3>
+            <span className="text-text-secondary cursor-pointer">...</span>
           </div>
-          <div style={styles.chartBody}>
-             <svg width="100%" height="100%" viewBox="0 0 100 30" preserveAspectRatio="none">
-               <path d="M0,25 Q10,20 20,25 T40,15 T60,20 T80,10 T100,5" fill="none" stroke="var(--accent-blue)" strokeWidth="1.5" />
-               <path d="M0,28 Q15,22 30,26 T50,18 T70,22 T90,14 T100,10" fill="none" stroke="var(--accent-green)" strokeWidth="1" opacity="0.5" />
-             </svg>
+          <div className="flex-1 flex items-end justify-center gap-2.5 pb-2">
+            {[12, 18, 5, 22, 14, 30, 8].map((h, i) => (
+              <div
+                key={i}
+                className="w-8 bg-accent-blue rounded-t opacity-60"
+                style={{ height: `${h * 4}px` }}
+              />
+            ))}
           </div>
         </div>
 
-        {/* Data Table */}
-        <div style={styles.tableContainer}>
-          <div style={styles.tableHeader}>
-            <h3 style={styles.tableTitle}>Managed Targets</h3>
+        {/* Table */}
+        <div className="bg-bg-card border border-border-theme rounded-lg overflow-hidden">
+          <div className="p-5 border-b border-border-theme">
+            <h3 className="m-0 text-base font-semibold text-text-primary">Active Targets Database</h3>
           </div>
           {normalizedChannels.length === 0 ? (
-            <div style={styles.emptyState}>No targets actively blocked.</div>
+            <div className="p-10 text-center text-text-secondary text-sm">
+              No targets active. Add a channel to the blocklist.
+            </div>
           ) : (
-            <table style={styles.table}>
+            <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  <th style={styles.th}>Channel Name</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Date Added</th>
-                  <th style={styles.th}>Action</th>
+                  {['CHANNEL NAME', 'STATUS', 'ACTIONS'].map((h, i) => (
+                    <th key={h} className={`text-left px-5 py-3 text-text-secondary text-xs font-medium border-b border-border-theme ${i === 2 ? 'text-right' : ''}`}>{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {normalizedChannels.map((ch, idx) => (
-                  <tr key={idx} style={styles.tr}>
-                    <td style={{...styles.td, fontWeight: 'bold'}}>{ch.name}</td>
-                    <td style={styles.td}>
-                      <span style={styles.badge}>Blocked</span>
+                {normalizedChannels.map((channel, idx) => (
+                  <tr key={idx} className="border-b border-border-theme hover:bg-bg-hover">
+                    <td className="px-5 py-[15px] text-sm text-text-primary font-medium">{channel}</td>
+                    <td className="px-5 py-[15px] text-sm">
+                      <span className="bg-accent-green/10 text-accent-green px-2 py-1 rounded-full text-xs font-semibold">Blocked</span>
                     </td>
-                    <td style={styles.td}>{ch.dateAdded}</td>
-                    <td style={styles.td}>
-                      <button 
-                        onClick={() => handleRemove(ch.name)}
-                        style={styles.actionBtn}
+                    <td className="px-5 py-[15px] text-right">
+                      <button
+                        onClick={() => removeChannel(channel)}
+                        className="bg-transparent border-none text-text-secondary cursor-pointer text-base hover:text-accent-red"
                         title="Remove Target"
                       >
                         ❌
@@ -362,349 +288,3 @@ export default function App() {
     </div>
   );
 }
-
-// ============================================
-// STYLES
-// ============================================
-const styles = {
-  // POPUP STYLES
-  popupContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    width: '350px',
-    height: '400px',
-    background: 'var(--bg-dark)',
-    fontFamily: 'var(--font-family, Inter, sans-serif)',
-  },
-  popupHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '15px 20px',
-    background: 'var(--bg-sidebar)',
-    borderBottom: '1px solid var(--border-color)',
-  },
-  popupTitle: {
-    margin: 0,
-    fontSize: '15px',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-  },
-  popupStatus: {
-    fontSize: '12px',
-    fontWeight: '600',
-    color: 'var(--text-secondary)',
-  },
-  popupContent: {
-    flex: 1,
-    padding: '20px',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  popupSearchInput: {
-    flex: 1,
-    background: 'transparent',
-    border: 'none',
-    color: 'var(--text-primary)',
-    padding: '10px 15px',
-    outline: 'none',
-    fontSize: '13px',
-  },
-  popupStats: {
-    display: 'flex',
-    justifyContent: 'center',
-    margin: '30px 0',
-  },
-  popupStatBadge: {
-    background: 'var(--bg-sidebar)',
-    padding: '8px 16px',
-    borderRadius: '20px',
-    fontSize: '13px',
-    fontWeight: '600',
-    border: '1px solid var(--border-color)',
-    color: 'var(--accent-blue)',
-  },
-  popupFooterBtn: {
-    marginTop: 'auto',
-    width: '100%',
-    padding: '12px',
-    background: 'var(--accent-blue)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '14px',
-    transition: 'opacity 0.2s',
-  },
-
-  // DASHBOARD STYLES
-  container: {
-    display: 'flex',
-    width: '100vw',
-    height: '100vh',
-    // Mesh gradient background so the glassmorphism actually has something to blur
-    background: 'radial-gradient(circle at 5% 20%, rgba(47, 129, 247, 0.15), transparent 40%), radial-gradient(circle at 95% 80%, rgba(46, 160, 67, 0.15), transparent 40%), var(--bg-dark)',
-    fontFamily: 'var(--font-family, Inter, sans-serif)',
-    minWidth: '800px',
-  },
-  sidebar: {
-    width: '240px',
-    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%)',
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    borderRight: '1px solid rgba(255, 255, 255, 0.05)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-    borderRadius: '16px',
-    margin: '16px',
-    display: 'flex',
-    flexDirection: 'column',
-    padding: '20px 0',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-  },
-  logoContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 20px 20px',
-    borderBottom: '1px solid var(--border-color)',
-  },
-  logoIcon: {
-    fontSize: '24px',
-    marginRight: '10px',
-  },
-  logoTitle: {
-    margin: 0,
-    fontSize: '16px',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-  },
-  nav: {
-    flex: 1,
-    overflowY: 'auto',
-    padding: '20px 0',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  navSection: {
-    marginBottom: '20px',
-  },
-  navSectionBottom: {
-    marginTop: 'auto',
-    marginBottom: '20px',
-  },
-  navSectionTitle: {
-    fontSize: '11px',
-    fontWeight: 'bold',
-    color: 'var(--text-secondary)',
-    padding: '0 20px',
-    marginBottom: '10px',
-    letterSpacing: '1px',
-  },
-  navItem: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '10px 20px',
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
-    fontSize: '14px',
-    textDecoration: 'none',
-  },
-  navItemActive: {
-    color: 'var(--text-primary)',
-    background: 'var(--bg-hover)',
-    borderLeft: '3px solid var(--accent-blue)',
-  },
-  navIcon: {
-    marginRight: '12px',
-    fontSize: '16px',
-  },
-  mainContent: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflowY: 'auto',
-    padding: '30px 40px',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '30px',
-  },
-  pageTitle: {
-    margin: 0,
-    fontSize: '24px',
-    fontWeight: '600',
-  },
-  searchWrapper: {
-    position: 'relative',
-    width: '100%',
-    maxWidth: '350px',
-  },
-  searchContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    background: 'var(--bg-sidebar)',
-    border: '1px solid var(--border-color)',
-    borderRadius: '6px',
-    overflow: 'hidden',
-  },
-  searchIcon: {
-    padding: '0 10px',
-    color: 'var(--text-secondary)',
-  },
-  searchInput: {
-    flex: 1,
-    background: 'transparent',
-    border: 'none',
-    color: 'var(--text-primary)',
-    padding: '10px 0',
-    outline: 'none',
-    fontSize: '14px',
-  },
-  blockButton: {
-    background: 'var(--accent-red)',
-    color: '#fff',
-    border: 'none',
-    padding: '0 15px',
-    height: '100%',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '13px',
-  },
-  dropdown: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    marginTop: '5px',
-    background: 'var(--bg-card)',
-    border: '1px solid var(--border-color)',
-    borderRadius: '6px',
-    padding: 0,
-    margin: 0,
-    listStyleType: 'none',
-    zIndex: 10,
-    maxHeight: '200px',
-    overflowY: 'auto',
-    boxShadow: '0 8px 16px rgba(0,0,0,0.5)',
-  },
-  dropdownItem: {
-    padding: '12px 15px',
-    cursor: 'pointer',
-    borderBottom: '1px solid var(--border-color)',
-    fontSize: '14px',
-  },
-  kpiContainer: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '20px',
-    marginBottom: '30px',
-  },
-  kpiCard: {
-    background: 'var(--bg-card)',
-    border: '1px solid var(--border-color)',
-    borderRadius: '8px',
-    padding: '20px',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-  },
-  kpiTitle: {
-    margin: '0 0 10px 0',
-    fontSize: '13px',
-    color: 'var(--text-secondary)',
-    fontWeight: '500',
-  },
-  kpiValue: {
-    margin: 0,
-    fontSize: '28px',
-    fontWeight: 'bold',
-  },
-  chartContainer: {
-    background: 'var(--bg-card)',
-    border: '1px solid var(--border-color)',
-    borderRadius: '8px',
-    padding: '20px',
-    marginBottom: '30px',
-    height: '250px',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  chartHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: '20px',
-  },
-  chartTitle: {
-    margin: 0,
-    fontSize: '16px',
-    fontWeight: '600',
-  },
-  chartOptions: {
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
-  },
-  chartBody: {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tableContainer: {
-    background: 'var(--bg-card)',
-    border: '1px solid var(--border-color)',
-    borderRadius: '8px',
-    overflow: 'hidden',
-  },
-  tableHeader: {
-    padding: '20px',
-    borderBottom: '1px solid var(--border-color)',
-  },
-  tableTitle: {
-    margin: 0,
-    fontSize: '16px',
-    fontWeight: '600',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '12px 20px',
-    color: 'var(--text-secondary)',
-    fontSize: '12px',
-    fontWeight: '500',
-    borderBottom: '1px solid var(--border-color)',
-  },
-  tr: {
-    borderBottom: '1px solid var(--border-color)',
-  },
-  td: {
-    padding: '15px 20px',
-    fontSize: '14px',
-  },
-  badge: {
-    background: 'rgba(46, 160, 67, 0.15)',
-    color: 'var(--accent-green)',
-    padding: '4px 8px',
-    borderRadius: '12px',
-    fontSize: '12px',
-    fontWeight: '600',
-  },
-  actionBtn: {
-    background: 'transparent',
-    border: 'none',
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
-    fontSize: '16px',
-  },
-  emptyState: {
-    padding: '40px',
-    textAlign: 'center',
-    color: 'var(--text-secondary)',
-    fontSize: '14px',
-  }
-};

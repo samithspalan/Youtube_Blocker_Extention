@@ -15,6 +15,21 @@ export default function App() {
   const [analyticsData, setAnalyticsData] = useState([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
+  const [totalNukes, setTotalNukes] = useState(() => {
+    return isChromeExtension ? 0 : 34; // mock total for dev mode
+  });
+  const [nukeHistory, setNukeHistory] = useState(() => {
+    if (isChromeExtension) return {};
+    const history = {};
+    const today = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      history[key] = [8, 15, 3, 22, 10, 18, 5][i];
+    }
+    return history;
+  });
+
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('theme');
     if (saved) return saved;
@@ -32,23 +47,54 @@ export default function App() {
 
   useEffect(() => {
     if (!isChromeExtension) return;
-    chrome.storage.local.get(['blockedChannels'], (result) => {
+    chrome.storage.local.get(['blockedChannels', 'totalNukes', 'nukeHistory'], (result) => {
       if (result.blockedChannels) setChannels(result.blockedChannels);
+      if (result.totalNukes !== undefined) setTotalNukes(result.totalNukes);
+      if (result.nukeHistory) setNukeHistory(result.nukeHistory);
     });
+
+    const handleStorageChange = (changes, namespace) => {
+      if (namespace === 'local') {
+        if (changes.blockedChannels) setChannels(changes.blockedChannels.newValue || []);
+        if (changes.totalNukes) setTotalNukes(changes.totalNukes.newValue || 0);
+        if (changes.nukeHistory) setNukeHistory(changes.nukeHistory.newValue || {});
+      }
+    };
+    chrome.storage.onChanged.addListener(handleStorageChange);
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange);
+    };
   }, []);
 
   useEffect(() => {
+    let active = true;
     if (input.trim().length > 1) {
       if (isChromeExtension) {
         chrome.runtime.sendMessage({ action: 'fetchSuggestions', query: input }, (response) => {
-          setSuggestions(response?.suggestions ?? []);
+          if (!active) return;
+          if (chrome.runtime.lastError) {
+            console.error("Chrome runtime error:", chrome.runtime.lastError);
+            return;
+          }
+          if (response && response.success && response.data) {
+            setSuggestions(response.data);
+          } else {
+            setSuggestions([]);
+          }
         });
       } else {
-        setSuggestions([`${input} (mock 1)`, `${input} (mock 2)`]);
+        // Dev fallback: return matching rich objects
+        setSuggestions([
+          { name: `${input} (mock 1)`, thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80&auto=format&fit=crop', channelId: 'mock-id-1' },
+          { name: `${input} (mock 2)`, thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80&auto=format&fit=crop', channelId: 'mock-id-2' }
+        ]);
       }
     } else {
       setSuggestions([]);
     }
+    return () => {
+      active = false;
+    };
   }, [input]);
 
   useEffect(() => {
@@ -94,9 +140,34 @@ export default function App() {
     }
   };
 
-  const handleBlock = (targetChannel) => {
-    if (!targetChannel.trim()) return;
-    const newChannels = [...channels, targetChannel];
+  const handleBlock = (targetData) => {
+    const isString = typeof targetData === 'string';
+    const rawName = isString ? targetData : targetData.name;
+    if (!rawName || !rawName.trim()) return;
+    const cleanName = rawName.trim();
+    
+    // Determine the handle for matching
+    const handle = isString 
+      ? cleanName.replace('@', '').toLowerCase().trim() 
+      : (targetData.handle || cleanName.replace('@', '').toLowerCase().trim());
+
+    // Check for duplicate blocks in case-insensitive comparison
+    const exists = channels.some(c => {
+      const existingHandle = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+      return existingHandle === handle;
+    });
+    if (exists) {
+      setInput('');
+      setSuggestions([]);
+      return;
+    }
+
+    // Always append an object representing the block target
+    const newBlockObject = isString 
+      ? { name: cleanName, handle: handle }
+      : { name: cleanName, handle: handle, thumbnail: targetData.thumbnail, channelId: targetData.channelId };
+
+    const newChannels = [...channels, newBlockObject];
     setChannels(newChannels);
     if (isChromeExtension) chrome.storage.local.set({ blockedChannels: newChannels });
     setInput('');
@@ -104,7 +175,10 @@ export default function App() {
   };
 
   const removeChannel = (channelToRemove) => {
-    const newChannels = channels.filter(c => c !== channelToRemove);
+    const newChannels = channels.filter(c => {
+      const existingName = typeof c === 'string' ? c : c.name || 'Unknown';
+      return existingName !== channelToRemove;
+    });
     setChannels(newChannels);
     if (isChromeExtension) chrome.storage.local.set({ blockedChannels: newChannels });
   };
@@ -112,6 +186,29 @@ export default function App() {
   const openDashboard = () => {
     if (isChromeExtension) chrome.tabs.create({ url: chrome.runtime.getURL('react-popup/dist/index.html') });
   };
+
+  const getSevenDayStats = () => {
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const today = new Date();
+    const stats = [];
+    
+    // Get last 7 days starting from 6 days ago up to today
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const count = nukeHistory[key] || 0;
+      stats.push({
+        label: daysOfWeek[d.getDay()],
+        count: count
+      });
+    }
+    return stats;
+  };
+
+  const sevenDays = getSevenDayStats();
+  const maxVal = Math.max(...sevenDays.map(d => d.count), 5);
+  const linePath = sevenDays.map((d, i) => `${i === 0 ? 'M' : 'L'} ${i * 50} ${100 - (d.count / maxVal) * 90}`).join(' ');
+  const areaPath = `${linePath} L 300 120 L 0 120 Z`;
 
   const normalizedChannels = channels.map(c => typeof c === 'string' ? c : c.name || 'Unknown');
 
@@ -148,8 +245,21 @@ export default function App() {
             {suggestions.length > 0 && (
               <ul className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border-theme rounded-md p-0 m-0 list-none z-10 max-h-[200px] overflow-y-auto shadow-lg">
                 {suggestions.map((s, i) => (
-                  <li key={i} onClick={() => handleBlock(s)} className="p-3 cursor-pointer border-b border-border-theme text-[14px] text-text-primary hover:bg-bg-hover">
-                    {s}
+                  <li
+                    key={i}
+                    onMouseDown={(e) => { e.preventDefault(); handleBlock(s); }}
+                    className="p-3 cursor-pointer border-b border-border-theme text-[14px] text-text-primary hover:bg-bg-hover flex items-center gap-2.5"
+                  >
+                    {s.thumbnail ? (
+                      <img
+                        src={s.thumbnail}
+                        alt={s.name}
+                        className="w-6 h-6 rounded-full object-cover border border-white/10"
+                      />
+                    ) : (
+                      <span className="w-6 h-6 rounded-full bg-accent-blue/20 flex items-center justify-center text-[10px]">👤</span>
+                    )}
+                    <span className="font-medium truncate">{s.name}</span>
                   </li>
                 ))}
               </ul>
@@ -303,8 +413,21 @@ export default function App() {
                 {suggestions.length > 0 && (
                   <ul className="absolute top-full left-0 right-0 mt-2 bg-bg-card border border-border-theme rounded-xl p-0 list-none z-10 max-h-[200px] overflow-y-auto shadow-lg">
                     {suggestions.map((s, i) => (
-                      <li key={i} onClick={() => handleBlock(s)} className="px-4 py-3 cursor-pointer border-b border-border-theme text-sm text-text-primary hover:bg-bg-hover first:rounded-t-xl last:rounded-b-xl last:border-b-0">
-                        {s}
+                      <li
+                        key={i}
+                        onMouseDown={(e) => { e.preventDefault(); handleBlock(s); }}
+                        className="px-4 py-3 cursor-pointer border-b border-border-theme text-sm text-text-primary hover:bg-bg-hover flex items-center gap-3 transition-colors first:rounded-t-xl last:rounded-b-xl last:border-b-0"
+                      >
+                        {s.thumbnail ? (
+                          <img
+                            src={s.thumbnail}
+                            alt={s.name}
+                            className="w-7 h-7 rounded-full object-cover border border-white/10"
+                          />
+                        ) : (
+                          <span className="w-7 h-7 rounded-full bg-accent-blue/20 flex items-center justify-center text-xs">👤</span>
+                        )}
+                        <span className="font-medium truncate">{s.name}</span>
                       </li>
                     ))}
                   </ul>
@@ -316,7 +439,7 @@ export default function App() {
             <div className="grid grid-cols-3 gap-5 mb-6">
               {[
                 { label: 'Active Targets', value: normalizedChannels.length, color: 'text-text-primary' },
-                { label: 'Videos Nuked', value: 0, color: 'text-text-primary' },
+                { label: 'Videos Nuked', value: totalNukes, color: 'text-text-primary' },
                 { label: 'DB Status', value: dbStatus, color: dbStatus === 'Connected' ? 'text-accent-green' : 'text-accent-red' },
               ].map(({ label, value, color }) => (
                 <div
@@ -374,11 +497,11 @@ export default function App() {
                           className="relative group flex flex-col items-center flex-1 min-w-[20px] max-w-[40px] h-full justify-end"
                         >
                           <div
-                            className="w-full rounded-t opacity-85 hover:opacity-100 transition-all cursor-pointer"
+                            className="w-full rounded-t opacity-45 hover:opacity-90 transition-all cursor-pointer"
                             style={{
                               height: `${heightPercent}%`,
                               background: 'var(--accent-blue)',
-                              boxShadow: '0 0 12px var(--accent-blue)'
+                              boxShadow: '0 0 6px rgba(47, 129, 247, 0.4)'
                             }}
                           />
                           {/* Tooltip */}
@@ -419,7 +542,7 @@ export default function App() {
                   <svg className="w-full h-[210px]" viewBox="0 0 300 120" preserveAspectRatio="none">
                     <defs>
                       <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--accent-blue)" stopOpacity="0.45" />
+                        <stop offset="0%" stopColor="var(--accent-blue)" stopOpacity="0.22" />
                         <stop offset="100%" stopColor="var(--accent-blue)" stopOpacity="0.0" />
                       </linearGradient>
                       <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
@@ -428,36 +551,33 @@ export default function App() {
                       </filter>
                     </defs>
                     {/* Grid Lines */}
-                    <line x1="0" y1="30" x2="300" y2="30" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-                    <line x1="0" y1="60" x2="300" y2="60" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-                    <line x1="0" y1="90" x2="300" y2="90" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+                    <line x1="0" y1="30" x2="300" y2="30" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+                    <line x1="0" y1="60" x2="300" y2="60" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+                    <line x1="0" y1="90" x2="300" y2="90" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
 
-                    {/* Area under the line */}
-                    <path
-                      d="M 0 100 C 40 40, 80 85, 120 20 C 160 50, 200 90, 240 30 L 300 10 L 300 120 L 0 120 Z"
-                      fill="url(#areaGradient)"
-                    />
-
-                    {/* Glowing Stroke Path */}
-                    <path
-                      d="M 0 100 C 40 40, 80 85, 120 20 C 160 50, 200 90, 240 30 L 300 10"
-                      fill="none"
-                      stroke="var(--accent-blue)"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                      filter="url(#glow)"
-                    />
-                  </svg>
-                  {/* Axis labels */}
-                  <div className="flex justify-between text-[10px] text-text-secondary font-medium mt-1.5 px-1">
-                    <span>Mon</span>
-                    <span>Tue</span>
-                    <span>Wed</span>
-                    <span>Thu</span>
-                    <span>Fri</span>
-                    <span>Sat</span>
-                    <span>Sun</span>
-                  </div>
+                     {/* Area under the line (Dynamic) */}
+                     <path
+                       d={areaPath}
+                       fill="url(#areaGradient)"
+                     />
+ 
+                     {/* Glowing Stroke Path (Dynamic) */}
+                     <path
+                       d={linePath}
+                       fill="none"
+                       stroke="var(--accent-blue)"
+                       strokeWidth="3.5"
+                       strokeLinecap="round"
+                       strokeOpacity="0.65"
+                       filter="url(#glow)"
+                     />
+                   </svg>
+                   {/* Axis labels (Dynamic Rolling Days) */}
+                   <div className="flex justify-between text-[10px] text-text-secondary font-medium mt-1.5 px-1">
+                     {sevenDays.map((d, i) => (
+                       <span key={i}>{d.label}</span>
+                     ))}
+                   </div>
                 </div>
               </div>
             </div>

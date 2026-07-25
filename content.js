@@ -7,7 +7,12 @@ chrome.storage.local.get(['blockedChannels'], (result) => {
     console.log("📦 [Stealth Blocker] Raw Storage Data:", result);
     
     if (result.blockedChannels && result.blockedChannels.length > 0) {
-        blockedList = result.blockedChannels.map(h => h.toLowerCase().trim());
+        blockedList = result.blockedChannels.map(c => {
+            if (typeof c === 'string') {
+                return c.toLowerCase().replace('@', '').trim();
+            }
+            return (c.handle || c.name || '').toLowerCase().replace('@', '').trim();
+        }).filter(Boolean);
         console.log("🎯 [Stealth Blocker] Armed Targets:", blockedList);
         scrubPage();
     } else {
@@ -18,7 +23,12 @@ chrome.storage.local.get(['blockedChannels'], (result) => {
 // 2. Live Sync
 chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'local' && changes.blockedChannels) {
-        blockedList = changes.blockedChannels.newValue.map(h => h.toLowerCase().trim());
+        blockedList = changes.blockedChannels.newValue.map(c => {
+            if (typeof c === 'string') {
+                return c.toLowerCase().replace('@', '').trim();
+            }
+            return (c.handle || c.name || '').toLowerCase().replace('@', '').trim();
+        }).filter(Boolean);
         console.log("🔄 [Stealth Blocker] Targets updated:", blockedList);
         scrubPage();
     }
@@ -42,7 +52,12 @@ function scrubPage() {
                 
                 if (blockedList.includes(handle)) {
                     console.log(`💥 [Stealth Blocker] NUKING VIDEO FROM: @${handle}`);
-                    el.remove(); 
+                    el.remove();
+                    try {
+                        chrome.runtime.sendMessage({ action: 'recordNuke', handle: handle });
+                    } catch (err) {
+                        // Ignore connection errors if popup/extension context is reloaded
+                    }
                     break; 
                 }
             }

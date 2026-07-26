@@ -2,7 +2,6 @@ console.log("🚨 [Stealth Blocker] SCRIPT INJECTED SUCCESSFULLY!");
 
 let blockedList = [];
 
-// 1. Initial Load: See exactly what is inside Chrome Storage
 chrome.storage.local.get(['blockedChannels'], (result) => {
     console.log("📦 [Stealth Blocker] Raw Storage Data:", result);
     
@@ -20,7 +19,6 @@ chrome.storage.local.get(['blockedChannels'], (result) => {
     }
 });
 
-// 2. Live Sync
 chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'local' && changes.blockedChannels) {
         blockedList = changes.blockedChannels.newValue.map(c => {
@@ -34,7 +32,6 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     }
 });
 
-// 3. The Core Scrubbing Engine
 function scrubPage() {
     if (blockedList.length === 0) return;
 
@@ -56,8 +53,7 @@ function scrubPage() {
                     try {
                         chrome.runtime.sendMessage({ action: 'recordNuke', handle: handle });
                     } catch (err) {
-                        // Ignore connection errors if popup/extension context is reloaded
-                    }
+                   }
                     break; 
                 }
             }
@@ -65,7 +61,6 @@ function scrubPage() {
     });
 }
 
-// 4. The MutationObserver
 const observer = new MutationObserver(() => {
     scrubPage();
 });

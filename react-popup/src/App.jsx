@@ -3,6 +3,29 @@ import { useState, useEffect } from 'react';
 // Guard: true only when running as a real Chrome extension
 const isChromeExtension = typeof chrome !== 'undefined' && !!chrome.storage;
 
+const styles = {
+  container: {
+    background: 'var(--bg-dark)',
+    height: '100vh',
+    overflow: 'hidden'
+  },
+  sidebar: {
+    backdropFilter: 'blur(20px)',
+    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%)',
+    height: 'calc(100% - 32px)',
+    maxHeight: 'calc(100% - 32px)',
+    overflowY: 'auto',
+    minHeight: 0
+  },
+  mainContent: {
+    height: '100%',
+    maxHeight: '100%',
+    overflowY: 'auto',
+    paddingBottom: '80px',
+    minHeight: 0
+  }
+};
+
 export default function App() {
   const [channels, setChannels] = useState([]);
   const [input, setInput] = useState('');
@@ -287,8 +310,8 @@ export default function App() {
   // ============================================
   return (
     <div
-      className="flex w-screen h-screen min-w-[800px] font-sans relative overflow-hidden"
-      style={{ background: 'var(--bg-dark)' }}
+      className="flex w-screen min-w-[800px] font-sans relative"
+      style={styles.container}
     >
       {/* Decorative Neon Mesh Blobs for Glassmorphism Contrast */}
       <div 
@@ -307,7 +330,7 @@ export default function App() {
       {/* ---- SIDEBAR ---- */}
       <div
         className="flex flex-col w-[240px] m-4 rounded-2xl py-5 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
-        style={{ backdropFilter: 'blur(20px)', background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)' }}
+        style={styles.sidebar}
       >
         {/* Logo */}
         <div className="flex items-center px-5 pb-5 border-b border-border-theme">
@@ -375,7 +398,10 @@ export default function App() {
         </nav>
       </div>
 
-      <div className="flex-1 flex flex-col overflow-y-auto py-[30px] px-10">
+      <div 
+        className="flex-1 flex flex-col py-[30px] px-10"
+        style={styles.mainContent}
+      >
         {activeTab === 'command' ? (
           <>
             {/* Header row */}

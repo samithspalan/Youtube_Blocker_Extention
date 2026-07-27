@@ -18,6 +18,7 @@ const styles = {
     minHeight: 0
   },
   mainContent: {
+    flex: 1,
     height: '100vh',
     maxHeight: '100vh',
     overflowY: 'auto',
@@ -27,6 +28,13 @@ const styles = {
     paddingRight: '40px',
     boxSizing: 'border-box',
     minHeight: 0
+  },
+  card: {
+    background: 'var(--glass-bg)',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    border: '1px solid var(--glass-border)',
+    boxShadow: 'var(--glass-shadow)'
   }
 };
 
@@ -403,7 +411,7 @@ export default function App() {
       </div>
 
       <div 
-        className="flex-1 flex flex-col"
+        className="flex-1"
         style={styles.mainContent}
       >
         {activeTab === 'command' ? (
@@ -475,13 +483,7 @@ export default function App() {
                 <div
                   key={label}
                   className="rounded-lg p-3.5 flex flex-col justify-center items-center"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%)',
-                    backdropFilter: 'blur(18px)',
-                    WebkitBackdropFilter: 'blur(18px)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
-                  }}
+                  style={styles.card}
                 >
                   <h3 className="m-0 mb-1 text-[11px] text-text-secondary font-semibold uppercase tracking-wider">{label}</h3>
                   {label === 'DB Status' ? (
@@ -504,13 +506,7 @@ export default function App() {
               {/* Left Chart Card: Target Sequence */}
               <div
                 className="rounded-lg p-5 flex flex-col h-full overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 100%)',
-                  backdropFilter: 'blur(18px)',
-                  WebkitBackdropFilter: 'blur(18px)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
-                }}
+                style={styles.card}
               >
                 <h3 className="m-0 mb-3 text-sm font-semibold text-text-primary uppercase tracking-wider">Target Sequence</h3>
                 {normalizedChannels.length === 0 ? (
@@ -559,13 +555,7 @@ export default function App() {
               {/* Right Chart Card: Intervention Frequency */}
               <div
                 className="rounded-lg p-5 flex flex-col h-full"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 100%)',
-                  backdropFilter: 'blur(18px)',
-                  WebkitBackdropFilter: 'blur(18px)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
-                }}
+                style={styles.card}
               >
                 <h3 className="m-0 mb-3 text-sm font-semibold text-text-primary uppercase tracking-wider">Intervention Frequency (7 Days)</h3>
                 <div className="flex-1 relative w-full flex flex-col justify-between">
@@ -615,13 +605,7 @@ export default function App() {
             {/* Table */}
             <div
               className="rounded-lg overflow-hidden"
-              style={{
-                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 100%)',
-                backdropFilter: 'blur(18px)',
-                WebkitBackdropFilter: 'blur(18px)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
-              }}
+              style={styles.card}
             >
               <div className="p-5 border-b border-border-theme">
                 <h3 className="m-0 text-base font-semibold text-text-primary">Active Targets Database</h3>
@@ -706,13 +690,7 @@ export default function App() {
                 <div
                   key={label}
                   className="rounded-lg p-5 flex flex-col justify-center"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%)',
-                    backdropFilter: 'blur(18px)',
-                    WebkitBackdropFilter: 'blur(18px)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
-                  }}
+                  style={styles.card}
                 >
                   <h3 className="m-0 mb-2.5 text-[13px] text-text-secondary font-medium">{label}</h3>
                   <p className={`m-0 text-2xl font-bold truncate ${color}`}>{value}</p>
@@ -723,13 +701,7 @@ export default function App() {
             {/* Analytics Table */}
             <div
               className="rounded-lg overflow-hidden flex-1"
-              style={{
-                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 100%)',
-                backdropFilter: 'blur(18px)',
-                WebkitBackdropFilter: 'blur(18px)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
-              }}
+              style={styles.card}
             >
               <div className="p-5 border-b border-border-theme flex justify-between items-center">
                 <h3 className="m-0 text-base font-semibold text-text-primary">Block Triggers History</h3>

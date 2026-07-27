@@ -16,6 +16,19 @@
   --accent-red: #f85149;
   --accent-green: #2ea043;
   --border-color: #30363d;
+
+  /* Glassmorphism Variables - Light Mode by default */
+  --glass-bg: rgba(255, 255, 255, 0.15);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --glass-bg: rgba(20, 25, 30, 0.45);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  }
 }
 
 :root[data-theme="light"] {
@@ -27,6 +40,16 @@
   --text-primary: #1f2328;
   --text-secondary: #656d76;
   --border-color: #d0d7de;
+
+  --glass-bg: rgba(255, 255, 255, 0.15);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme="dark"] {
+  --glass-bg: rgba(20, 25, 30, 0.45);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
 }
 
 body, html {

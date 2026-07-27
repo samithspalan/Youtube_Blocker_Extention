@@ -12,16 +12,20 @@ const styles = {
   sidebar: {
     backdropFilter: 'blur(20px)',
     background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%)',
-    height: 'calc(100% - 32px)',
-    maxHeight: 'calc(100% - 32px)',
+    height: 'calc(100vh - 32px)',
+    maxHeight: 'calc(100vh - 32px)',
     overflowY: 'auto',
     minHeight: 0
   },
   mainContent: {
-    height: '100%',
-    maxHeight: '100%',
+    height: '100vh',
+    maxHeight: '100vh',
     overflowY: 'auto',
+    paddingTop: '30px',
     paddingBottom: '80px',
+    paddingLeft: '40px',
+    paddingRight: '40px',
+    boxSizing: 'border-box',
     minHeight: 0
   }
 };
@@ -399,7 +403,7 @@ export default function App() {
       </div>
 
       <div 
-        className="flex-1 flex flex-col py-[30px] px-10"
+        className="flex-1 flex flex-col"
         style={styles.mainContent}
       >
         {activeTab === 'command' ? (

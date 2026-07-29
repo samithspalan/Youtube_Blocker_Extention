@@ -252,16 +252,16 @@ export default function App() {
   // ============================================
   if (isPopup) {
     return (
-      <div className="flex flex-col w-[350px] h-[400px] bg-bg-dark font-sans">
+      <div className="flex flex-col w-[380px] h-[500px] bg-bg-dark font-sans">
         {/* Header */}
         <div className="flex justify-between items-center px-5 py-[15px] bg-bg-sidebar border-b border-border-theme">
           <h2 className="m-0 text-[15px] font-semibold text-text-primary">🛡️ YT Stealth Blocker</h2>
           <span className="text-xs font-semibold text-text-secondary">🟢 Active</span>
         </div>
 
-        <div className="flex-1 p-5 flex flex-col">
+        <div className="flex-1 p-5 flex flex-col min-h-0">
           {/* Search */}
-          <div className="relative w-full">
+          <div className="relative w-full mb-4">
             <div className="flex items-center bg-bg-sidebar border border-border-theme rounded-md overflow-hidden">
               <span className="px-2.5 text-text-secondary">🔍</span>
               <input
@@ -278,7 +278,7 @@ export default function App() {
               </button>
             </div>
             {suggestions.length > 0 && (
-              <ul className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border-theme rounded-md p-0 m-0 list-none z-10 max-h-[200px] overflow-y-auto shadow-lg">
+              <ul className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border-theme rounded-md p-0 m-0 list-none z-10 max-h-[150px] overflow-y-auto shadow-lg">
                 {suggestions.map((s, i) => (
                   <li
                     key={i}
@@ -301,15 +301,46 @@ export default function App() {
             )}
           </div>
 
-          {/* Stats Badge */}
-          <div className="flex justify-center my-8">
-            <span className="bg-bg-sidebar px-4 py-2 rounded-full text-[13px] font-semibold border border-border-theme text-accent-blue">
-              {normalizedChannels.length} Targets Active
-            </span>
+          {/* Blocked Channels List */}
+          <h3 className="text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-2">Blocked Channels</h3>
+          <div className="flex-1 overflow-y-auto mb-4 pr-1 flex flex-col gap-2 min-h-0">
+            {channels.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-text-secondary py-8">
+                <span className="text-2xl mb-1">🕊️</span>
+                <p className="m-0 text-[12px]">No channels blocked yet</p>
+              </div>
+            ) : (
+              channels.map((ch, idx) => {
+                const name = typeof ch === 'string' ? ch : ch.name;
+                const handle = typeof ch === 'string' ? '' : ch.handle;
+                const thumbnail = typeof ch === 'string' ? null : ch.thumbnail;
+                return (
+                  <div key={idx} className="flex justify-between items-center bg-bg-sidebar/40 p-2 rounded-lg border border-border-theme hover:bg-bg-sidebar/80 transition-colors">
+                    <div className="flex items-center gap-2 overflow-hidden flex-1 mr-2">
+                      {thumbnail ? (
+                        <img src={thumbnail} className="w-7 h-7 rounded-full object-cover border border-white/10" />
+                      ) : (
+                        <span className="w-7 h-7 rounded-full bg-accent-blue/20 flex items-center justify-center text-xs font-semibold text-accent-blue">👤</span>
+                      )}
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[13px] font-semibold text-text-primary truncate">{name}</span>
+                        {handle && <span className="text-[10px] text-text-secondary truncate">@{handle}</span>}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => removeChannel(name)}
+                      className="bg-accent-blue/20 hover:bg-accent-blue text-accent-blue hover:text-white border border-accent-blue/30 rounded px-2.5 py-1 text-[11px] cursor-pointer font-bold transition-all whitespace-nowrap"
+                    >
+                      Whitelist
+                    </button>
+                  </div>
+                );
+              })
+            )}
           </div>
 
           {/* Open Dashboard */}
-          <button onClick={openDashboard} className="mt-auto w-full py-3 bg-accent-blue text-white border-none rounded-md cursor-pointer font-semibold text-sm hover:opacity-90 transition-opacity">
+          <button onClick={openDashboard} className="w-full py-2.5 bg-bg-sidebar hover:bg-bg-hover text-text-primary border border-border-theme rounded-md cursor-pointer font-semibold text-[13px] transition-colors flex items-center justify-center gap-2">
             🚀 Open Full Dashboard
           </button>
         </div>

@@ -195,15 +195,19 @@ export default function App() {
     }
   };
 
+  const getCleanHandle = (item) => {
+    if (!item) return '';
+    const raw = typeof item === 'string' ? item : (item.handle || item.name || '');
+    return raw.replace('@', '').toLowerCase().trim();
+  };
+
   const handleBlock = (targetData) => {
     const isString = typeof targetData === 'string';
     const rawName = isString ? targetData : targetData.name;
     if (!rawName || !rawName.trim()) return;
     const cleanName = rawName.trim();
     
-    const handle = isString 
-      ? cleanName.replace('@', '').toLowerCase().trim() 
-      : (targetData.handle || cleanName.replace('@', '').toLowerCase().trim());
+    const handle = getCleanHandle(targetData);
 
     const blockObject = isString 
       ? { name: cleanName, handle: handle }
@@ -214,15 +218,8 @@ export default function App() {
         const storedBlocked = result.blockedChannels || [];
         const storedWhitelisted = result.whitelistedChannels || [];
 
-        const blockExists = storedBlocked.some(c => {
-          const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-          return h === handle;
-        });
-
-        const whitelistedIndex = storedWhitelisted.findIndex(c => {
-          const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-          return h === handle;
-        });
+        const blockExists = storedBlocked.some(c => getCleanHandle(c) === handle);
+        const whitelistedIndex = storedWhitelisted.findIndex(c => getCleanHandle(c) === handle);
 
         let updatedWhitelisted = storedWhitelisted;
         let moved = false;
@@ -261,24 +258,15 @@ export default function App() {
         });
       });
     } else {
-      const wasWhitelisted = whitelistedChannels.some(c => {
-        const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-        return h === handle;
-      });
+      const wasWhitelisted = whitelistedChannels.some(c => getCleanHandle(c) === handle);
 
       let updatedWhitelisted = whitelistedChannels;
       if (wasWhitelisted) {
-        updatedWhitelisted = whitelistedChannels.filter(c => {
-          const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-          return h !== handle;
-        });
+        updatedWhitelisted = whitelistedChannels.filter(c => getCleanHandle(c) !== handle);
         setWhitelistedChannels(updatedWhitelisted);
       }
 
-      const blockExists = channels.some(c => {
-        const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-        return h === handle;
-      });
+      const blockExists = channels.some(c => getCleanHandle(c) === handle);
 
       if (!blockExists) {
         const updatedBlocked = [...channels, blockObject];
@@ -302,9 +290,7 @@ export default function App() {
     if (!rawName || !rawName.trim()) return;
     const cleanName = rawName.trim();
     
-    const handle = isString 
-      ? cleanName.replace('@', '').toLowerCase().trim() 
-      : (targetData.handle || cleanName.replace('@', '').toLowerCase().trim());
+    const handle = getCleanHandle(targetData);
 
     const whitelistObject = isString 
       ? { name: cleanName, handle: handle }
@@ -315,15 +301,8 @@ export default function App() {
         const storedBlocked = result.blockedChannels || [];
         const storedWhitelisted = result.whitelistedChannels || [];
 
-        const whitelistExists = storedWhitelisted.some(c => {
-          const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-          return h === handle;
-        });
-
-        const blockedIndex = storedBlocked.findIndex(c => {
-          const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-          return h === handle;
-        });
+        const whitelistExists = storedWhitelisted.some(c => getCleanHandle(c) === handle);
+        const blockedIndex = storedBlocked.findIndex(c => getCleanHandle(c) === handle);
 
         let updatedBlocked = storedBlocked;
         let moved = false;
@@ -364,24 +343,15 @@ export default function App() {
         });
       });
     } else {
-      const wasBlocked = channels.some(c => {
-        const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-        return h === handle;
-      });
+      const wasBlocked = channels.some(c => getCleanHandle(c) === handle);
 
       let updatedBlocked = channels;
       if (wasBlocked) {
-        updatedBlocked = channels.filter(c => {
-          const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-          return h !== handle;
-        });
+        updatedBlocked = channels.filter(c => getCleanHandle(c) !== handle);
         setChannels(updatedBlocked);
       }
 
-      const whitelistExists = whitelistedChannels.some(c => {
-        const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-        return h === handle;
-      });
+      const whitelistExists = whitelistedChannels.some(c => getCleanHandle(c) === handle);
 
       if (!whitelistExists) {
         const updatedWhitelisted = [...whitelistedChannels, whitelistObject];
@@ -400,19 +370,15 @@ export default function App() {
   };
 
   const removeChannel = (channelToRemove) => {
-    const newChannels = channels.filter(c => {
-      const existingName = typeof c === 'string' ? c : c.name || 'Unknown';
-      return existingName !== channelToRemove;
-    });
+    const handleToRemove = getCleanHandle(channelToRemove);
+    const newChannels = channels.filter(c => getCleanHandle(c) !== handleToRemove);
     setChannels(newChannels);
     if (isChromeExtension) chrome.storage.local.set({ blockedChannels: newChannels });
   };
 
   const removeWhitelistedChannel = (channelToRemove) => {
-    const newWhitelisted = whitelistedChannels.filter(c => {
-      const existingName = typeof c === 'string' ? c : c.name || 'Unknown';
-      return existingName !== channelToRemove;
-    });
+    const handleToRemove = getCleanHandle(channelToRemove);
+    const newWhitelisted = whitelistedChannels.filter(c => getCleanHandle(c) !== handleToRemove);
     setWhitelistedChannels(newWhitelisted);
     if (isChromeExtension) chrome.storage.local.set({ whitelistedChannels: newWhitelisted });
   };
@@ -892,7 +858,7 @@ export default function App() {
               <div className="p-5 border-b border-border-theme">
                 <h3 className="m-0 text-base font-semibold text-text-primary">Active Targets Database</h3>
               </div>
-              {normalizedChannels.length === 0 ? (
+              {channels.length === 0 ? (
                 <div className="p-10 text-center text-text-secondary text-sm">
                   No targets active. Add a channel to the blocklist.
                 </div>
@@ -906,23 +872,33 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {normalizedChannels.map((channel, idx) => (
-                      <tr key={idx} className="border-b border-border-theme hover:bg-bg-hover">
-                        <td className="px-5 py-[15px] text-sm text-text-primary font-medium">{channel}</td>
-                        <td className="px-5 py-[15px] text-sm">
-                          <span className="bg-accent-green/10 text-accent-green px-2 py-1 rounded-full text-xs font-semibold">Blocked</span>
-                        </td>
-                        <td className="px-5 py-[15px] text-right">
-                          <button
-                            onClick={() => removeChannel(channel)}
-                            className="bg-transparent border-none text-text-secondary cursor-pointer text-base hover:text-accent-red"
-                            title="Remove Target"
-                          >
-                            ❌
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {channels.map((ch, idx) => {
+                      const name = typeof ch === 'string' ? ch : ch.name || 'Unknown';
+                      return (
+                        <tr key={idx} className="border-b border-border-theme hover:bg-bg-hover">
+                          <td className="px-5 py-[15px] text-sm text-text-primary font-medium flex items-center gap-3">
+                            {ch.thumbnail ? (
+                              <img src={ch.thumbnail} className="w-7 h-7 rounded-full object-cover border border-white/10" />
+                            ) : (
+                              <span className="w-7 h-7 rounded-full bg-accent-red/20 flex items-center justify-center text-xs font-semibold text-accent-red">👤</span>
+                            )}
+                            <span>{name}</span>
+                          </td>
+                          <td className="px-5 py-[15px] text-sm">
+                            <span className="bg-accent-green/10 text-accent-green px-2 py-1 rounded-full text-xs font-semibold">Blocked</span>
+                          </td>
+                          <td className="px-5 py-[15px] text-right">
+                            <button
+                              onClick={() => removeChannel(name)}
+                              className="bg-transparent border-none text-text-secondary cursor-pointer text-base hover:text-accent-red"
+                              title="Remove Target"
+                            >
+                              ❌
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}

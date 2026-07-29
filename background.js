@@ -1,33 +1,46 @@
-// Load gitignored secrets (contains YOUTUBE_API_KEY)
-try {
-    importScripts('./secrets.js');
-} catch (e) {
-    console.error("Failed to load secrets.js. Make sure it exists at the extension root.", e);
+let YOUTUBE_API_KEY_CACHED = null;
+
+async function getApiKey() {
+    if (YOUTUBE_API_KEY_CACHED) return YOUTUBE_API_KEY_CACHED;
+    try {
+        const url = chrome.runtime.getURL('secrets.js');
+        const response = await fetch(url);
+        const text = await response.text();
+        const match = text.match(/YOUTUBE_API_KEY\s*=\s*["']([^"']+)["']/);
+        if (match && match[1]) {
+            YOUTUBE_API_KEY_CACHED = match[1];
+            return YOUTUBE_API_KEY_CACHED;
+        }
+    } catch (e) {
+        console.error("Failed to load secrets.js dynamically:", e);
+    }
+    return null;
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "fetchSuggestions") {
-        if (typeof YOUTUBE_API_KEY === 'undefined' || !YOUTUBE_API_KEY) {
-            console.error("YOUTUBE_API_KEY is not defined.");
-            sendResponse({ success: false, error: "API key is missing in secrets.js" });
-            return;
-        }
+        getApiKey().then(apiKey => {
+            if (!apiKey) {
+                console.error("YOUTUBE_API_KEY is not defined.");
+                sendResponse({ success: false, error: "API key is missing in secrets.js" });
+                return;
+            }
 
-        // Querying the official YouTube v3 API for channels, max 5 matches
-        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=5&q=${encodeURIComponent(request.query)}&key=${YOUTUBE_API_KEY}`;
-        
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                if (data.items && data.items.length > 0) {
-                    const channelIds = data.items.map(item => item.id?.channelId || item.snippet?.channelId).filter(Boolean).join(',');
-                    if (!channelIds) {
-                        sendResponse({ success: true, data: [] });
-                        return;
-                    }
-                    
-                    const detailsUrl = `https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${channelIds}&key=${YOUTUBE_API_KEY}`;
-                    fetch(detailsUrl)
+            // Querying the official YouTube v3 API for channels, max 5 matches
+            const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=5&q=${encodeURIComponent(request.query)}&key=${apiKey}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.items && data.items.length > 0) {
+                        const channelIds = data.items.map(item => item.id?.channelId || item.snippet?.channelId).filter(Boolean).join(',');
+                        if (!channelIds) {
+                            sendResponse({ success: true, data: [] });
+                            return;
+                        }
+                        
+                        const detailsUrl = `https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${channelIds}&key=${apiKey}`;
+                        fetch(detailsUrl)
                         .then(res => res.json())
                         .then(detailsData => {
                             if (detailsData.items) {
@@ -54,6 +67,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 console.error("Background search fetch error:", error);
                 sendResponse({ success: false, error: error.message });
             });
+        }).catch(err => {
+            console.error("Failed to load API key:", err);
+            sendResponse({ success: false, error: err.message });
+        });
             
         // Return true tells Chrome we will send the response asynchronously
         return true; 
@@ -131,12 +148,13 @@ async function fetchLatestVideos(channelHandle) {
 
     console.log(`[fetchLatestVideos] Cache miss or expired for handle: ${normalizedHandle}. Fetching from API...`);
 
-    if (typeof YOUTUBE_API_KEY === 'undefined' || !YOUTUBE_API_KEY) {
+    const apiKey = await getApiKey();
+    if (!apiKey) {
         throw new Error("YOUTUBE_API_KEY is not defined in secrets.js");
     }
 
     // Step 1: Query channels.list (part=contentDetails) to get the uploads playlist ID
-    const channelUrl = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&forHandle=${encodeURIComponent('@' + normalizedHandle)}&key=${YOUTUBE_API_KEY}`;
+    const channelUrl = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&forHandle=${encodeURIComponent('@' + normalizedHandle)}&key=${apiKey}`;
     
     const channelResponse = await fetch(channelUrl);
     if (!channelResponse.ok) {
@@ -154,7 +172,7 @@ async function fetchLatestVideos(channelHandle) {
     }
 
     // Step 2: Query playlistItems.list (part=snippet, maxResults=10) to get the 10 most recent videos
-    const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=10&playlistId=${uploadsPlaylistId}&key=${YOUTUBE_API_KEY}`;
+    const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=10&playlistId=${uploadsPlaylistId}&key=${apiKey}`;
     
     const playlistResponse = await fetch(playlistUrl);
     if (!playlistResponse.ok) {

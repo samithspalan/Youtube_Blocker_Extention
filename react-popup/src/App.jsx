@@ -53,6 +53,16 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('command');
   const [analyticsData, setAnalyticsData] = useState([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
+
+  const triggerToast = (msg) => {
+    setToastMessage(msg);
+    setShowToast(true);
+    setTimeout(() => {
+      setShowToast(false);
+    }, 3000);
+  };
 
   const [totalNukes, setTotalNukes] = useState(() => {
     return isChromeExtension ? 0 : 34; // mock total for dev mode
@@ -191,48 +201,96 @@ export default function App() {
     if (!rawName || !rawName.trim()) return;
     const cleanName = rawName.trim();
     
-    // Determine the handle for matching
     const handle = isString 
       ? cleanName.replace('@', '').toLowerCase().trim() 
       : (targetData.handle || cleanName.replace('@', '').toLowerCase().trim());
 
-    // Check for duplicate blocks in case-insensitive comparison
-    const exists = channels.some(c => {
-      const existingHandle = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-      return existingHandle === handle;
-    });
-
-    // Enforce mutual exclusion: if whitelisted, remove from whitelist
-    const wasWhitelisted = whitelistedChannels.some(c => {
-      const existingHandle = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-      return existingHandle === handle;
-    });
-
-    let newWhitelisted = whitelistedChannels;
-    if (wasWhitelisted) {
-      newWhitelisted = whitelistedChannels.filter(c => {
-        const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-        return h !== handle;
-      });
-      setWhitelistedChannels(newWhitelisted);
-      if (isChromeExtension) chrome.storage.local.set({ whitelistedChannels: newWhitelisted });
-    }
-
-    if (exists) {
-      setInput('');
-      setBlockInput('');
-      setSuggestions([]);
-      return;
-    }
-
-    // Always append an object representing the block target
-    const newBlockObject = isString 
+    const blockObject = isString 
       ? { name: cleanName, handle: handle }
       : { name: cleanName, handle: handle, thumbnail: targetData.thumbnail, channelId: targetData.channelId };
 
-    const newChannels = [...channels, newBlockObject];
-    setChannels(newChannels);
-    if (isChromeExtension) chrome.storage.local.set({ blockedChannels: newChannels });
+    if (isChromeExtension) {
+      chrome.storage.local.get(['blockedChannels', 'whitelistedChannels'], (result) => {
+        const storedBlocked = result.blockedChannels || [];
+        const storedWhitelisted = result.whitelistedChannels || [];
+
+        const blockExists = storedBlocked.some(c => {
+          const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+          return h === handle;
+        });
+
+        const whitelistedIndex = storedWhitelisted.findIndex(c => {
+          const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+          return h === handle;
+        });
+
+        let updatedWhitelisted = storedWhitelisted;
+        let moved = false;
+
+        if (whitelistedIndex > -1) {
+          updatedWhitelisted = storedWhitelisted.filter((_, idx) => idx !== whitelistedIndex);
+          moved = true;
+        }
+
+        if (blockExists) {
+          if (moved) {
+            chrome.storage.local.set({ whitelistedChannels: updatedWhitelisted }, () => {
+              setWhitelistedChannels(updatedWhitelisted);
+              triggerToast(`Channel moved from Whitelist to Blocked`);
+            });
+          }
+          setInput('');
+          setBlockInput('');
+          setSuggestions([]);
+          return;
+        }
+
+        const updatedBlocked = [...storedBlocked, blockObject];
+
+        chrome.storage.local.set({
+          blockedChannels: updatedBlocked,
+          whitelistedChannels: updatedWhitelisted
+        }, () => {
+          setChannels(updatedBlocked);
+          setWhitelistedChannels(updatedWhitelisted);
+          if (moved) {
+            triggerToast(`Channel moved from Whitelist to Blocked`);
+          } else {
+            triggerToast(`Channel added to Blocklist`);
+          }
+        });
+      });
+    } else {
+      const wasWhitelisted = whitelistedChannels.some(c => {
+        const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+        return h === handle;
+      });
+
+      let updatedWhitelisted = whitelistedChannels;
+      if (wasWhitelisted) {
+        updatedWhitelisted = whitelistedChannels.filter(c => {
+          const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+          return h !== handle;
+        });
+        setWhitelistedChannels(updatedWhitelisted);
+      }
+
+      const blockExists = channels.some(c => {
+        const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+        return h === handle;
+      });
+
+      if (!blockExists) {
+        const updatedBlocked = [...channels, blockObject];
+        setChannels(updatedBlocked);
+        if (wasWhitelisted) {
+          triggerToast(`Channel moved from Whitelist to Blocked`);
+        } else {
+          triggerToast(`Channel added to Blocklist`);
+        }
+      }
+    }
+
     setInput('');
     setBlockInput('');
     setSuggestions([]);
@@ -244,52 +302,98 @@ export default function App() {
     if (!rawName || !rawName.trim()) return;
     const cleanName = rawName.trim();
     
-    // Determine the handle for matching
     const handle = isString 
       ? cleanName.replace('@', '').toLowerCase().trim() 
       : (targetData.handle || cleanName.replace('@', '').toLowerCase().trim());
 
-    // Check for duplicate whitelists
-    const exists = whitelistedChannels.some(c => {
-      const existingHandle = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-      return existingHandle === handle;
-    });
-
-    // Enforce mutual exclusion: if blocked, remove from blocklist
-    const wasBlocked = channels.some(c => {
-      const existingHandle = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-      return existingHandle === handle;
-    });
-
-    let newChannels = channels;
-    if (wasBlocked) {
-      newChannels = channels.filter(c => {
-        const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
-        return h !== handle;
-      });
-      setChannels(newChannels);
-      if (isChromeExtension) chrome.storage.local.set({ blockedChannels: newChannels });
-    }
-
-    if (exists) {
-      setInput('');
-      setWhitelistInput('');
-      setSuggestions([]);
-      return;
-    }
-
-    // Always append an object representing the whitelist target
-    const newWhitelistObject = isString 
+    const whitelistObject = isString 
       ? { name: cleanName, handle: handle }
       : { name: cleanName, handle: handle, thumbnail: targetData.thumbnail, channelId: targetData.channelId };
 
-    const newWhitelisted = [...whitelistedChannels, newWhitelistObject];
-    setWhitelistedChannels(newWhitelisted);
     if (isChromeExtension) {
-      chrome.storage.local.set({ whitelistedChannels: newWhitelisted });
-      // Trigger background fetch for this channel's videos immediately!
-      chrome.runtime.sendMessage({ action: 'fetchLatestVideos', channelHandle: handle });
+      chrome.storage.local.get(['blockedChannels', 'whitelistedChannels'], (result) => {
+        const storedBlocked = result.blockedChannels || [];
+        const storedWhitelisted = result.whitelistedChannels || [];
+
+        const whitelistExists = storedWhitelisted.some(c => {
+          const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+          return h === handle;
+        });
+
+        const blockedIndex = storedBlocked.findIndex(c => {
+          const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+          return h === handle;
+        });
+
+        let updatedBlocked = storedBlocked;
+        let moved = false;
+
+        if (blockedIndex > -1) {
+          updatedBlocked = storedBlocked.filter((_, idx) => idx !== blockedIndex);
+          moved = true;
+        }
+
+        if (whitelistExists) {
+          if (moved) {
+            chrome.storage.local.set({ blockedChannels: updatedBlocked }, () => {
+              setChannels(updatedBlocked);
+              triggerToast(`Channel moved from Blocked to Whitelist`);
+            });
+          }
+          setInput('');
+          setWhitelistInput('');
+          setSuggestions([]);
+          return;
+        }
+
+        const updatedWhitelisted = [...storedWhitelisted, whitelistObject];
+
+        chrome.storage.local.set({
+          blockedChannels: updatedBlocked,
+          whitelistedChannels: updatedWhitelisted
+        }, () => {
+          setChannels(updatedBlocked);
+          setWhitelistedChannels(updatedWhitelisted);
+          chrome.runtime.sendMessage({ action: 'fetchLatestVideos', channelHandle: handle });
+          
+          if (moved) {
+            triggerToast(`Channel moved from Blocked to Whitelist`);
+          } else {
+            triggerToast(`Channel added to Whitelist`);
+          }
+        });
+      });
+    } else {
+      const wasBlocked = channels.some(c => {
+        const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+        return h === handle;
+      });
+
+      let updatedBlocked = channels;
+      if (wasBlocked) {
+        updatedBlocked = channels.filter(c => {
+          const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+          return h !== handle;
+        });
+        setChannels(updatedBlocked);
+      }
+
+      const whitelistExists = whitelistedChannels.some(c => {
+        const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+        return h === handle;
+      });
+
+      if (!whitelistExists) {
+        const updatedWhitelisted = [...whitelistedChannels, whitelistObject];
+        setWhitelistedChannels(updatedWhitelisted);
+        if (wasBlocked) {
+          triggerToast(`Channel moved from Blocked to Whitelist`);
+        } else {
+          triggerToast(`Channel added to Whitelist`);
+        }
+      }
     }
+
     setInput('');
     setWhitelistInput('');
     setSuggestions([]);
@@ -453,6 +557,34 @@ export default function App() {
             🚀 Open Full Dashboard
           </button>
         </div>
+        {showToast && (
+          <div 
+            style={{
+              position: 'fixed',
+              bottom: '24px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              padding: '10px 16px',
+              borderRadius: '8px',
+              color: '#ffffff',
+              fontSize: '12px',
+              fontWeight: '600',
+              background: 'rgba(15, 23, 42, 0.85)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.3s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <span>🔔</span> {toastMessage}
+          </div>
+        )}
       </div>
     );
   }
@@ -1085,6 +1217,34 @@ export default function App() {
           </>
         )}
       </div>
+      {showToast && (
+        <div 
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            color: '#ffffff',
+            fontSize: '12px',
+            fontWeight: '600',
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'all 0.3s ease',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <span>🔔</span> {toastMessage}
+        </div>
+      )}
     </div>
   );
 }

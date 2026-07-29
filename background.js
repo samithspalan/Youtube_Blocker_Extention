@@ -94,7 +94,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 /**
- * Fetches the 5 most recent videos for a channel by handle.
+ * Fetches the 10 most recent videos for a channel by handle.
  * Utilizes chrome.storage.local to cache results for up to 4 hours.
  * 
  * @param {string} channelHandle The YouTube channel handle (e.g. "@GoogleDevelopers" or "GoogleDevelopers").
@@ -153,8 +153,8 @@ async function fetchLatestVideos(channelHandle) {
         throw new Error(`Uploads playlist not found for channel: ${channelHandle}`);
     }
 
-    // Step 2: Query playlistItems.list (part=snippet, maxResults=5) to get the 5 most recent videos
-    const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=5&playlistId=${uploadsPlaylistId}&key=${YOUTUBE_API_KEY}`;
+    // Step 2: Query playlistItems.list (part=snippet, maxResults=10) to get the 10 most recent videos
+    const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=10&playlistId=${uploadsPlaylistId}&key=${YOUTUBE_API_KEY}`;
     
     const playlistResponse = await fetch(playlistUrl);
     if (!playlistResponse.ok) {

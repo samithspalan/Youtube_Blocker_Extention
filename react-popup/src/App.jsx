@@ -39,8 +39,12 @@ const styles = {
 };
 
 export default function App() {
-  const [channels, setChannels] = useState([]);
-  const [input, setInput] = useState('');
+  const [channels, setChannels] = useState([]); // blocked channels
+  const [whitelistedChannels, setWhitelistedChannels] = useState([]); // whitelisted channels
+  const [input, setInput] = useState(''); // shared input for dashboard search
+  const [blockInput, setBlockInput] = useState(''); // popup block input
+  const [whitelistInput, setWhitelistInput] = useState(''); // popup whitelist input
+  const [focusedInput, setFocusedInput] = useState(null); // 'block' | 'whitelist'
   const [suggestions, setSuggestions] = useState([]);
   const [dbStatus, setDbStatus] = useState('Connected');
   const [isPopup, setIsPopup] = useState(false);
@@ -82,8 +86,9 @@ export default function App() {
 
   useEffect(() => {
     if (!isChromeExtension) return;
-    chrome.storage.local.get(['blockedChannels', 'totalNukes', 'nukeHistory'], (result) => {
+    chrome.storage.local.get(['blockedChannels', 'whitelistedChannels', 'totalNukes', 'nukeHistory'], (result) => {
       if (result.blockedChannels) setChannels(result.blockedChannels);
+      if (result.whitelistedChannels) setWhitelistedChannels(result.whitelistedChannels);
       if (result.totalNukes !== undefined) setTotalNukes(result.totalNukes);
       if (result.nukeHistory) setNukeHistory(result.nukeHistory);
     });
@@ -91,6 +96,7 @@ export default function App() {
     const handleStorageChange = (changes, namespace) => {
       if (namespace === 'local') {
         if (changes.blockedChannels) setChannels(changes.blockedChannels.newValue || []);
+        if (changes.whitelistedChannels) setWhitelistedChannels(changes.whitelistedChannels.newValue || []);
         if (changes.totalNukes) setTotalNukes(changes.totalNukes.newValue || 0);
         if (changes.nukeHistory) setNukeHistory(changes.nukeHistory.newValue || {});
       }
@@ -101,11 +107,15 @@ export default function App() {
     };
   }, []);
 
+  const currentQuery = isPopup 
+    ? (focusedInput === 'block' ? blockInput : (focusedInput === 'whitelist' ? whitelistInput : ''))
+    : input;
+
   useEffect(() => {
     let active = true;
-    if (input.trim().length > 1) {
+    if (currentQuery.trim().length > 1) {
       if (isChromeExtension) {
-        chrome.runtime.sendMessage({ action: 'fetchSuggestions', query: input }, (response) => {
+        chrome.runtime.sendMessage({ action: 'fetchSuggestions', query: currentQuery }, (response) => {
           if (!active) return;
           if (chrome.runtime.lastError) {
             console.error("Chrome runtime error:", chrome.runtime.lastError);
@@ -120,8 +130,8 @@ export default function App() {
       } else {
         // Dev fallback: return matching rich objects
         setSuggestions([
-          { name: `${input} (mock 1)`, thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80&auto=format&fit=crop', channelId: 'mock-id-1' },
-          { name: `${input} (mock 2)`, thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80&auto=format&fit=crop', channelId: 'mock-id-2' }
+          { name: `${currentQuery} (mock 1)`, thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80&auto=format&fit=crop', channelId: 'mock-id-1' },
+          { name: `${currentQuery} (mock 2)`, thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80&auto=format&fit=crop', channelId: 'mock-id-2' }
         ]);
       }
     } else {
@@ -130,7 +140,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [input]);
+  }, [currentQuery]);
 
   useEffect(() => {
     if (activeTab === 'analytics') {
@@ -191,8 +201,26 @@ export default function App() {
       const existingHandle = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
       return existingHandle === handle;
     });
+
+    // Enforce mutual exclusion: if whitelisted, remove from whitelist
+    const wasWhitelisted = whitelistedChannels.some(c => {
+      const existingHandle = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+      return existingHandle === handle;
+    });
+
+    let newWhitelisted = whitelistedChannels;
+    if (wasWhitelisted) {
+      newWhitelisted = whitelistedChannels.filter(c => {
+        const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+        return h !== handle;
+      });
+      setWhitelistedChannels(newWhitelisted);
+      if (isChromeExtension) chrome.storage.local.set({ whitelistedChannels: newWhitelisted });
+    }
+
     if (exists) {
       setInput('');
+      setBlockInput('');
       setSuggestions([]);
       return;
     }
@@ -206,6 +234,64 @@ export default function App() {
     setChannels(newChannels);
     if (isChromeExtension) chrome.storage.local.set({ blockedChannels: newChannels });
     setInput('');
+    setBlockInput('');
+    setSuggestions([]);
+  };
+
+  const handleWhitelist = (targetData) => {
+    const isString = typeof targetData === 'string';
+    const rawName = isString ? targetData : targetData.name;
+    if (!rawName || !rawName.trim()) return;
+    const cleanName = rawName.trim();
+    
+    // Determine the handle for matching
+    const handle = isString 
+      ? cleanName.replace('@', '').toLowerCase().trim() 
+      : (targetData.handle || cleanName.replace('@', '').toLowerCase().trim());
+
+    // Check for duplicate whitelists
+    const exists = whitelistedChannels.some(c => {
+      const existingHandle = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+      return existingHandle === handle;
+    });
+
+    // Enforce mutual exclusion: if blocked, remove from blocklist
+    const wasBlocked = channels.some(c => {
+      const existingHandle = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+      return existingHandle === handle;
+    });
+
+    let newChannels = channels;
+    if (wasBlocked) {
+      newChannels = channels.filter(c => {
+        const h = typeof c === 'string' ? c.replace('@', '').toLowerCase().trim() : (c.handle || '');
+        return h !== handle;
+      });
+      setChannels(newChannels);
+      if (isChromeExtension) chrome.storage.local.set({ blockedChannels: newChannels });
+    }
+
+    if (exists) {
+      setInput('');
+      setWhitelistInput('');
+      setSuggestions([]);
+      return;
+    }
+
+    // Always append an object representing the whitelist target
+    const newWhitelistObject = isString 
+      ? { name: cleanName, handle: handle }
+      : { name: cleanName, handle: handle, thumbnail: targetData.thumbnail, channelId: targetData.channelId };
+
+    const newWhitelisted = [...whitelistedChannels, newWhitelistObject];
+    setWhitelistedChannels(newWhitelisted);
+    if (isChromeExtension) {
+      chrome.storage.local.set({ whitelistedChannels: newWhitelisted });
+      // Trigger background fetch for this channel's videos immediately!
+      chrome.runtime.sendMessage({ action: 'fetchLatestVideos', channelHandle: handle });
+    }
+    setInput('');
+    setWhitelistInput('');
     setSuggestions([]);
   };
 
@@ -216,6 +302,15 @@ export default function App() {
     });
     setChannels(newChannels);
     if (isChromeExtension) chrome.storage.local.set({ blockedChannels: newChannels });
+  };
+
+  const removeWhitelistedChannel = (channelToRemove) => {
+    const newWhitelisted = whitelistedChannels.filter(c => {
+      const existingName = typeof c === 'string' ? c : c.name || 'Unknown';
+      return existingName !== channelToRemove;
+    });
+    setWhitelistedChannels(newWhitelisted);
+    if (isChromeExtension) chrome.storage.local.set({ whitelistedChannels: newWhitelisted });
   };
 
   const openDashboard = () => {
@@ -252,7 +347,7 @@ export default function App() {
   // ============================================
   if (isPopup) {
     return (
-      <div className="flex flex-col w-[380px] h-[500px] bg-bg-dark font-sans">
+      <div className="flex flex-col w-[360px] h-[400px] bg-bg-dark font-sans">
         {/* Header */}
         <div className="flex justify-between items-center px-5 py-[15px] bg-bg-sidebar border-b border-border-theme">
           <h2 className="m-0 text-[15px] font-semibold text-text-primary">🛡️ YT Stealth Blocker</h2>
@@ -260,25 +355,27 @@ export default function App() {
         </div>
 
         <div className="flex-1 p-5 flex flex-col min-h-0">
-          {/* Search */}
-          <div className="relative w-full mb-4">
+          {/* Input 1: Block */}
+          <div className="relative w-full mb-3">
             <div className="flex items-center bg-bg-sidebar border border-border-theme rounded-md overflow-hidden">
-              <span className="px-2.5 text-text-secondary">🔍</span>
+              <span className="px-2.5 text-text-secondary">🛡️</span>
               <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
+                value={blockInput}
+                onChange={(e) => setBlockInput(e.target.value)}
+                onFocus={() => setFocusedInput('block')}
+                onBlur={() => setTimeout(() => setFocusedInput(null), 200)}
                 placeholder="Target channel to block..."
                 className="flex-1 bg-transparent border-none text-text-primary py-2.5 outline-none text-[13px]"
               />
               <button
-                onClick={() => handleBlock(input)}
+                onClick={() => handleBlock(blockInput)}
                 className="bg-accent-red text-white border-none px-4 py-2 cursor-pointer font-bold text-[13px]"
               >
                 Block
               </button>
             </div>
-            {suggestions.length > 0 && (
-              <ul className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border-theme rounded-md p-0 m-0 list-none z-10 max-h-[150px] overflow-y-auto shadow-lg">
+            {focusedInput === 'block' && suggestions.length > 0 && (
+              <ul className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border-theme rounded-md p-0 m-0 list-none z-50 max-h-[120px] overflow-y-auto shadow-lg">
                 {suggestions.map((s, i) => (
                   <li
                     key={i}
@@ -301,46 +398,58 @@ export default function App() {
             )}
           </div>
 
-          {/* Blocked Channels List */}
-          <h3 className="text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-2">Blocked Channels</h3>
-          <div className="flex-1 overflow-y-auto mb-4 pr-1 flex flex-col gap-2 min-h-0">
-            {channels.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-text-secondary py-8">
-                <span className="text-2xl mb-1">🕊️</span>
-                <p className="m-0 text-[12px]">No channels blocked yet</p>
-              </div>
-            ) : (
-              channels.map((ch, idx) => {
-                const name = typeof ch === 'string' ? ch : ch.name;
-                const handle = typeof ch === 'string' ? '' : ch.handle;
-                const thumbnail = typeof ch === 'string' ? null : ch.thumbnail;
-                return (
-                  <div key={idx} className="flex justify-between items-center bg-bg-sidebar/40 p-2 rounded-lg border border-border-theme hover:bg-bg-sidebar/80 transition-colors">
-                    <div className="flex items-center gap-2 overflow-hidden flex-1 mr-2">
-                      {thumbnail ? (
-                        <img src={thumbnail} className="w-7 h-7 rounded-full object-cover border border-white/10" />
-                      ) : (
-                        <span className="w-7 h-7 rounded-full bg-accent-blue/20 flex items-center justify-center text-xs font-semibold text-accent-blue">👤</span>
-                      )}
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-[13px] font-semibold text-text-primary truncate">{name}</span>
-                        {handle && <span className="text-[10px] text-text-secondary truncate">@{handle}</span>}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => removeChannel(name)}
-                      className="bg-accent-blue/20 hover:bg-accent-blue text-accent-blue hover:text-white border border-accent-blue/30 rounded px-2.5 py-1 text-[11px] cursor-pointer font-bold transition-all whitespace-nowrap"
-                    >
-                      Whitelist
-                    </button>
-                  </div>
-                );
-              })
+          {/* Input 2: Whitelist */}
+          <div className="relative w-full mb-4">
+            <div className="flex items-center bg-bg-sidebar border border-border-theme rounded-md overflow-hidden">
+              <span className="px-2.5 text-text-secondary">⭐</span>
+              <input
+                value={whitelistInput}
+                onChange={(e) => setWhitelistInput(e.target.value)}
+                onFocus={() => setFocusedInput('whitelist')}
+                onBlur={() => setTimeout(() => setFocusedInput(null), 200)}
+                placeholder="Target channel to whitelist..."
+                className="flex-1 bg-transparent border-none text-text-primary py-2.5 outline-none text-[13px]"
+              />
+              <button
+                onClick={() => handleWhitelist(whitelistInput)}
+                className="bg-accent-blue text-white border-none px-4 py-2 cursor-pointer font-bold text-[13px]"
+              >
+                Whitelist
+              </button>
+            </div>
+            {focusedInput === 'whitelist' && suggestions.length > 0 && (
+              <ul className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border-theme rounded-md p-0 m-0 list-none z-50 max-h-[120px] overflow-y-auto shadow-lg">
+                {suggestions.map((s, i) => (
+                  <li
+                    key={i}
+                    onMouseDown={(e) => { e.preventDefault(); handleWhitelist(s); }}
+                    className="p-3 cursor-pointer border-b border-border-theme text-[14px] text-text-primary hover:bg-bg-hover flex items-center gap-2.5"
+                  >
+                    {s.thumbnail ? (
+                      <img
+                        src={s.thumbnail}
+                        alt={s.name}
+                        className="w-6 h-6 rounded-full object-cover border border-white/10"
+                      />
+                    ) : (
+                      <span className="w-6 h-6 rounded-full bg-accent-blue/20 flex items-center justify-center text-[10px]">👤</span>
+                    )}
+                    <span className="font-medium truncate">{s.name}</span>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
 
+          {/* Stats Badge */}
+          <div className="flex justify-center my-4">
+            <span className="bg-bg-sidebar px-4 py-2 rounded-full text-[12px] font-semibold border border-border-theme text-accent-blue">
+              {channels.length} Blocked &nbsp;|&nbsp; {whitelistedChannels.length} Whitelisted
+            </span>
+          </div>
+
           {/* Open Dashboard */}
-          <button onClick={openDashboard} className="w-full py-2.5 bg-bg-sidebar hover:bg-bg-hover text-text-primary border border-border-theme rounded-md cursor-pointer font-semibold text-[13px] transition-colors flex items-center justify-center gap-2">
+          <button onClick={openDashboard} className="mt-auto w-full py-3 bg-accent-blue text-white border-none rounded-md cursor-pointer font-semibold text-sm hover:opacity-90 transition-opacity">
             🚀 Open Full Dashboard
           </button>
         </div>
@@ -406,6 +515,16 @@ export default function App() {
               <span className="mr-3">⌘</span> Terminal
             </button>
             <button
+              onClick={() => setActiveTab('whitelist')}
+              className={`flex items-center px-5 py-2.5 text-sm cursor-pointer border-none bg-transparent text-left outline-none transition-all ${
+                activeTab === 'whitelist'
+                  ? 'text-text-primary bg-bg-hover border-l-[3px] border-accent-blue font-semibold'
+                  : 'text-text-secondary border-l-[3px] border-transparent hover:bg-bg-hover'
+              }`}
+            >
+              <span className="mr-3">⭐</span> Whitelist
+            </button>
+            <button
               onClick={() => setActiveTab('analytics')}
               className={`flex items-center px-5 py-2.5 text-sm cursor-pointer border-none bg-transparent text-left outline-none transition-all ${
                 activeTab === 'analytics'
@@ -468,9 +587,9 @@ export default function App() {
                   <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    onFocus={() => setSearchFocused(true)}
-                    onBlur={() => setSearchFocused(false)}
-                    placeholder="Search..."
+                    onFocus={() => { setSearchFocused(true); setFocusedInput('block'); }}
+                    onBlur={() => { setSearchFocused(false); setTimeout(() => setFocusedInput(null), 200); }}
+                    placeholder="Search blocked channels..."
                     className="flex-1 bg-transparent border-none text-text-primary py-2.5 pr-4 outline-none text-sm placeholder:text-text-secondary"
                   />
                   {input && (
@@ -479,8 +598,8 @@ export default function App() {
                     </button>
                   )}
                 </div>
-                {suggestions.length > 0 && (
-                  <ul className="absolute top-full left-0 right-0 mt-2 bg-bg-card border border-border-theme rounded-xl p-0 list-none z-10 max-h-[200px] overflow-y-auto shadow-lg">
+                {focusedInput === 'block' && suggestions.length > 0 && (
+                  <ul className="absolute top-full left-0 right-0 mt-2 bg-bg-card border border-border-theme rounded-xl p-0 list-none z-50 max-h-[200px] overflow-y-auto shadow-lg">
                     {suggestions.map((s, i) => (
                       <li
                         key={i}
@@ -672,6 +791,195 @@ export default function App() {
                         </td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </>
+        ) : activeTab === 'whitelist' ? (
+          <>
+            {/* Header row */}
+            <div className="flex justify-between items-center mb-8">
+              <h1 
+                className="m-0 text-3xl font-black italic tracking-wide"
+                style={{
+                  background: 'linear-gradient(135deg, #a78bfa 30%, var(--accent-blue) 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  textShadow: '0 0 20px rgba(167, 139, 250, 0.15)'
+                }}
+              >
+                Whitelist
+              </h1>
+
+              {/* Search bar - pill style, expands on focus */}
+              <div className="relative" style={{ width: searchFocused ? '420px' : '260px', transition: 'width 0.3s ease' }}>
+                <div className={`flex items-center bg-bg-sidebar border rounded-full overflow-visible transition-all duration-300 ${searchFocused ? 'border-accent-blue shadow-[0_0_0_3px_rgba(47,129,247,0.15)]' : 'border-border-theme'}`}>
+                  <span className="pl-4 pr-2 text-text-secondary text-sm">🔍</span>
+                  <input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onFocus={() => { setSearchFocused(true); setFocusedInput('whitelist'); }}
+                    onBlur={() => { setSearchFocused(false); setTimeout(() => setFocusedInput(null), 200); }}
+                    placeholder="Search whitelist channels..."
+                    className="flex-1 bg-transparent border-none text-text-primary py-2.5 pr-4 outline-none text-sm placeholder:text-text-secondary"
+                  />
+                  {input && (
+                    <button onClick={() => handleWhitelist(input)} className="mr-2 bg-accent-blue text-white border-none rounded-full px-3 py-1 cursor-pointer font-bold text-xs whitespace-nowrap">
+                      Whitelist
+                    </button>
+                  )}
+                </div>
+                {focusedInput === 'whitelist' && suggestions.length > 0 && (
+                  <ul className="absolute top-full left-0 right-0 mt-2 bg-bg-card border border-border-theme rounded-xl p-0 list-none z-50 max-h-[200px] overflow-y-auto shadow-lg">
+                    {suggestions.map((s, i) => (
+                      <li
+                        key={i}
+                        onMouseDown={(e) => { e.preventDefault(); handleWhitelist(s); }}
+                        className="px-4 py-3 cursor-pointer border-b border-border-theme text-sm text-text-primary hover:bg-bg-hover flex items-center gap-3 transition-colors first:rounded-t-xl last:rounded-b-xl last:border-b-0"
+                      >
+                        {s.thumbnail ? (
+                          <img
+                            src={s.thumbnail}
+                            alt={s.name}
+                            className="w-7 h-7 rounded-full object-cover border border-white/10"
+                          />
+                        ) : (
+                          <span className="w-7 h-7 rounded-full bg-accent-blue/20 flex items-center justify-center text-xs">👤</span>
+                        )}
+                        <span className="font-medium truncate">{s.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {/* KPI Cards */}
+            <div className="grid grid-cols-3 gap-5 mb-6">
+              {[
+                { label: 'Whitelisted Targets', value: whitelistedChannels.length, color: 'text-text-primary' },
+                { label: 'Cache Status', value: '4 Hours Active', color: 'text-text-primary' },
+                { label: 'DB Status', value: dbStatus, color: dbStatus === 'Connected' ? 'text-accent-green' : 'text-accent-red' },
+              ].map(({ label, value, color }) => (
+                <div
+                  key={label}
+                  className="rounded-lg p-3.5 flex flex-col justify-center items-center"
+                  style={styles.card}
+                >
+                  <h3 className="m-0 mb-1 text-[11px] text-text-secondary font-semibold uppercase tracking-wider">{label}</h3>
+                  {label === 'DB Status' ? (
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`w-2 h-2 rounded-full ${dbStatus === 'Connected' ? 'bg-accent-green animate-pulse' : 'bg-accent-red'}`} />
+                      <p className={`m-0 text-base font-bold ${color}`}>{value}</p>
+                    </div>
+                  ) : (
+                    <p className={`m-0 text-xl font-bold ${color}`}>{value}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Whitelisted Target Sequence Chart */}
+            <div className="grid grid-cols-1 gap-5 mb-8" style={{ height: '220px' }}>
+              <div
+                className="rounded-lg p-5 flex flex-col h-full overflow-hidden"
+                style={styles.card}
+              >
+                <h3 className="m-0 mb-3 text-sm font-semibold text-text-primary uppercase tracking-wider">Whitelisted Target Sequence</h3>
+                {whitelistedChannels.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center text-text-secondary text-sm">
+                    No whitelisted channels mapped
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-end justify-around gap-2 pb-2 h-full overflow-x-auto">
+                    {whitelistedChannels.map((ch, i) => {
+                      const name = typeof ch === 'string' ? ch : ch.name || 'Unknown';
+                      const heightPercent = Math.max(20, Math.min(100, ((name.length * 7) + 20) % 100));
+                      return (
+                        <div
+                          key={i}
+                          className="relative group flex flex-col items-center flex-1 min-w-[20px] max-w-[40px] h-full justify-end"
+                        >
+                          <div
+                            className="w-full rounded-t opacity-45 hover:opacity-90 transition-all cursor-pointer"
+                            style={{
+                              height: `${heightPercent}%`,
+                              background: 'var(--accent-blue)',
+                              boxShadow: '0 0 6px rgba(47, 129, 247, 0.4)'
+                            }}
+                          />
+                          <div
+                            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none whitespace-nowrap shadow-lg"
+                            style={{
+                              background: '#18181b',
+                              color: '#fff',
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              border: '1px solid rgba(255,255,255,0.1)'
+                            }}
+                          >
+                            {name}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Table */}
+            <div
+              className="rounded-lg overflow-hidden"
+              style={styles.card}
+            >
+              <div className="p-5 border-b border-border-theme">
+                <h3 className="m-0 text-base font-semibold text-text-primary">Active Whitelist Database</h3>
+              </div>
+              {whitelistedChannels.length === 0 ? (
+                <div className="p-10 text-center text-text-secondary text-sm">
+                  No whitelisted channels active. Add productive channels to see their latest videos.
+                </div>
+              ) : (
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      {['CHANNEL NAME', 'STATUS', 'ACTIONS'].map((h, i) => (
+                        <th key={h} className={`text-left px-5 py-3 text-text-secondary text-xs font-medium border-b border-border-theme ${i === 2 ? 'text-right' : ''}`}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {whitelistedChannels.map((ch, idx) => {
+                      const name = typeof ch === 'string' ? ch : ch.name || 'Unknown';
+                      return (
+                        <tr key={idx} className="border-b border-border-theme hover:bg-bg-hover">
+                          <td className="px-5 py-[15px] text-sm text-text-primary font-medium flex items-center gap-3">
+                            {ch.thumbnail ? (
+                              <img src={ch.thumbnail} className="w-7 h-7 rounded-full object-cover border border-white/10" />
+                            ) : (
+                              <span className="w-7 h-7 rounded-full bg-accent-blue/20 flex items-center justify-center text-xs font-semibold text-accent-blue">👤</span>
+                            )}
+                            <span>{name}</span>
+                          </td>
+                          <td className="px-5 py-[15px] text-sm">
+                            <span className="bg-accent-blue/10 text-accent-blue px-2 py-1 rounded-full text-xs font-semibold">Whitelisted</span>
+                          </td>
+                          <td className="px-5 py-[15px] text-right">
+                            <button
+                              onClick={() => removeWhitelistedChannel(name)}
+                              className="bg-transparent border-none text-text-secondary cursor-pointer text-base hover:text-accent-red"
+                              title="Remove Whitelist"
+                            >
+                              ❌
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}

@@ -955,56 +955,64 @@ export default function App() {
 
             {/* Table */}
             <div
-              className="rounded-lg overflow-hidden"
-              style={styles.card}
+              className="outer-glass-container"
             >
-              <div className="p-5 border-b border-border-theme">
-                <h3 className="m-0 text-base font-semibold text-text-primary">Active Targets Database</h3>
-              </div>
-              {channels.length === 0 ? (
-                <div className="p-10 text-center text-text-secondary text-sm">
-                  No targets active. Add a channel to the blocklist.
+              <div className="outer-header-row flex justify-between items-center">
+                <div className="parent-title-group flex items-center">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mr-2 text-accent-red" style={{ filter: 'drop-shadow(0 0 4px var(--accent-red))' }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  <h3 className="parent-title m-0 text-base font-semibold text-text-primary">Active Targets Database</h3>
                 </div>
-              ) : (
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr>
-                      {['CHANNEL NAME', 'STATUS', 'ACTIONS'].map((h, i) => (
-                        <th key={h} className={`text-left px-5 py-3 text-text-secondary text-xs font-medium border-b border-border-theme ${i === 2 ? 'text-right' : ''}`}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {channels.map((ch, idx) => {
-                      const name = typeof ch === 'string' ? ch : ch.name || 'Unknown';
-                      return (
-                        <tr key={idx} className="border-b border-border-theme hover:bg-bg-hover">
-                          <td className="px-5 py-[15px] text-sm text-text-primary font-medium flex items-center gap-3">
-                            {ch.thumbnail ? (
-                              <img src={ch.thumbnail} className="w-7 h-7 rounded-full object-cover border border-white/10" />
-                            ) : (
-                              <span className="w-7 h-7 rounded-full bg-accent-red/20 flex items-center justify-center text-xs font-semibold text-accent-red">👤</span>
-                            )}
-                            <span>{name}</span>
-                          </td>
-                          <td className="px-5 py-[15px] text-sm">
-                            <span className="bg-accent-green/10 text-accent-green px-2 py-1 rounded-full text-xs font-semibold">Blocked</span>
-                          </td>
-                          <td className="px-5 py-[15px] text-right">
-                            <button
-                              onClick={() => removeChannel(ch)}
-                              className="bg-transparent border-none text-text-secondary cursor-pointer text-base hover:text-accent-red"
-                              title="Remove Target"
-                            >
-                              ❌
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
+                <div className="cursor-pointer text-text-secondary hover:text-text-primary p-1">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                </div>
+              </div>
+
+              <div className="inner-glass-content-area">
+                {channels.length === 0 ? (
+                  <div className="p-10 text-center text-text-secondary text-sm">
+                    No targets active. Add a channel to the blocklist.
+                  </div>
+                ) : (
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr>
+                        {['CHANNEL NAME', 'STATUS', 'ACTIONS'].map((h, i) => (
+                          <th key={h} className={`text-left px-5 py-3 text-text-secondary text-[11px] font-semibold tracking-wider uppercase border-b border-border-theme/40 ${i === 2 ? 'text-right' : ''}`}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {channels.map((ch, idx) => {
+                        const name = typeof ch === 'string' ? ch : ch.name || 'Unknown';
+                        return (
+                          <tr key={idx} className="border-b border-border-theme/30 hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                            <td className="px-5 py-[12px] text-sm text-text-primary font-medium flex items-center gap-3">
+                              {ch.thumbnail ? (
+                                <img src={ch.thumbnail} className="w-7 h-7 rounded-full object-cover border border-white/10" />
+                              ) : (
+                                <span className="w-7 h-7 rounded-full bg-accent-red/20 flex items-center justify-center text-xs font-semibold text-accent-red">👤</span>
+                              )}
+                              <span>{name}</span>
+                            </td>
+                            <td className="px-5 py-[12px] text-sm">
+                              <span className="bg-accent-red/10 text-accent-red px-2 py-0.5 rounded-full text-xs font-semibold border border-accent-red/15">Blocked</span>
+                            </td>
+                            <td className="px-5 py-[12px] text-right">
+                              <button
+                                onClick={() => removeChannel(ch)}
+                                className="bg-transparent border-none text-text-secondary cursor-pointer text-base hover:text-accent-red"
+                                title="Remove Target"
+                              >
+                                ❌
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           </>
         ) : activeTab === 'whitelist' ? (
@@ -1114,56 +1122,64 @@ export default function App() {
 
             {/* Table */}
             <div
-              className="rounded-lg overflow-hidden"
-              style={styles.card}
+              className="outer-glass-container"
             >
-              <div className="p-5 border-b border-border-theme">
-                <h3 className="m-0 text-base font-semibold text-text-primary">Active Whitelist Database</h3>
-              </div>
-              {whitelistedChannels.length === 0 ? (
-                <div className="p-10 text-center text-text-secondary text-sm">
-                  No whitelisted channels active. Add productive channels to see their latest videos.
+              <div className="outer-header-row flex justify-between items-center">
+                <div className="parent-title-group flex items-center">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mr-2 text-accent-blue" style={{ filter: 'drop-shadow(0 0 4px var(--accent-blue))' }}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  <h3 className="parent-title m-0 text-base font-semibold text-text-primary">Active Whitelist Database</h3>
                 </div>
-              ) : (
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr>
-                      {['CHANNEL NAME', 'STATUS', 'ACTIONS'].map((h, i) => (
-                        <th key={h} className={`text-left px-5 py-3 text-text-secondary text-xs font-medium border-b border-border-theme ${i === 2 ? 'text-right' : ''}`}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {whitelistedChannels.map((ch, idx) => {
-                      const name = typeof ch === 'string' ? ch : ch.name || 'Unknown';
-                      return (
-                        <tr key={idx} className="border-b border-border-theme hover:bg-bg-hover">
-                          <td className="px-5 py-[15px] text-sm text-text-primary font-medium flex items-center gap-3">
-                            {ch.thumbnail ? (
-                              <img src={ch.thumbnail} className="w-7 h-7 rounded-full object-cover border border-white/10" />
-                            ) : (
-                              <span className="w-7 h-7 rounded-full bg-accent-blue/20 flex items-center justify-center text-xs font-semibold text-accent-blue">👤</span>
-                            )}
-                            <span>{name}</span>
-                          </td>
-                          <td className="px-5 py-[15px] text-sm">
-                            <span className="bg-accent-blue/10 text-accent-blue px-2 py-1 rounded-full text-xs font-semibold">Whitelisted</span>
-                          </td>
-                          <td className="px-5 py-[15px] text-right">
-                            <button
-                              onClick={() => removeWhitelistedChannel(ch)}
-                              className="bg-transparent border-none text-text-secondary cursor-pointer text-base hover:text-accent-red"
-                              title="Remove Whitelist"
-                            >
-                              ❌
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
+                <div className="cursor-pointer text-text-secondary hover:text-text-primary p-1">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                </div>
+              </div>
+
+              <div className="inner-glass-content-area">
+                {whitelistedChannels.length === 0 ? (
+                  <div className="p-10 text-center text-text-secondary text-sm">
+                    No whitelisted channels active. Add productive channels to see their latest videos.
+                  </div>
+                ) : (
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr>
+                        {['CHANNEL NAME', 'STATUS', 'ACTIONS'].map((h, i) => (
+                          <th key={h} className={`text-left px-5 py-3 text-text-secondary text-[11px] font-semibold tracking-wider uppercase border-b border-border-theme/40 ${i === 2 ? 'text-right' : ''}`}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {whitelistedChannels.map((ch, idx) => {
+                        const name = typeof ch === 'string' ? ch : ch.name || 'Unknown';
+                        return (
+                          <tr key={idx} className="border-b border-border-theme/30 hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                            <td className="px-5 py-[12px] text-sm text-text-primary font-medium flex items-center gap-3">
+                              {ch.thumbnail ? (
+                                <img src={ch.thumbnail} className="w-7 h-7 rounded-full object-cover border border-white/10" />
+                              ) : (
+                                <span className="w-7 h-7 rounded-full bg-accent-blue/20 flex items-center justify-center text-xs font-semibold text-accent-blue">👤</span>
+                              )}
+                              <span>{name}</span>
+                            </td>
+                            <td className="px-5 py-[12px] text-sm">
+                              <span className="bg-accent-blue/10 text-accent-blue px-2 py-0.5 rounded-full text-xs font-semibold border border-accent-blue/15">Whitelisted</span>
+                            </td>
+                            <td className="px-5 py-[12px] text-right">
+                              <button
+                                onClick={() => removeWhitelistedChannel(ch)}
+                                className="bg-transparent border-none text-text-secondary cursor-pointer text-base hover:text-accent-red"
+                                title="Remove Whitelist"
+                              >
+                                ❌
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           </>
         ) : (
@@ -1338,20 +1354,12 @@ export default function App() {
 
             {/* Analytics Table */}
             <div
-              className="overflow-hidden flex-1"
-              style={{
-                background: 'var(--table-card-bg)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid var(--table-card-border)',
-                borderRadius: '16px',
-                boxShadow: 'var(--table-card-shadow)'
-              }}
+              className="outer-glass-container flex-1"
             >
-              <div className="p-5 border-b border-border-theme flex justify-between items-center">
-                <div className="flex items-center">
+              <div className="outer-header-row flex justify-between items-center">
+                <div className="parent-title-group flex items-center">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mr-2 text-accent-blue" style={{ filter: 'drop-shadow(0 0 4px var(--accent-blue))' }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  <h3 className="m-0 text-base font-semibold text-text-primary">Block Triggers History</h3>
+                  <h3 className="parent-title m-0 text-base font-semibold text-text-primary">Block Triggers History</h3>
                   {analyticsLoading && <span className="ml-3 text-xs text-text-secondary animate-pulse">Loading updates...</span>}
                 </div>
                 <div className="cursor-pointer text-text-secondary hover:text-text-primary p-1">
@@ -1363,37 +1371,40 @@ export default function App() {
                   No block history recorded yet. Keep browsing YouTube.
                 </div>
               ) : (
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr>
-                      {['TARGET HANDLE', 'BLOCK COUNT', 'DATE INITIALIZED'].map((h, i) => (
-                        <th key={h} className="text-left px-5 py-3 text-text-secondary text-[11px] font-semibold uppercase tracking-wider border-b border-border-theme">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {analyticsData.map((item, idx) => (
-                      <tr 
-                        key={item._id || idx} 
-                        className="hover:bg-bg-hover transition-colors"
-                        style={{ borderBottom: '1px solid var(--border-color)' }}
-                      >
-                        <td className="px-5 py-[15px] text-sm text-text-primary font-medium flex items-center">
-                          <div className="w-7 h-7 rounded-full bg-[#1e3a8a] text-[#93c5fd] flex items-center justify-center text-xs font-bold mr-3" style={{ width: '28px', height: '28px', borderRadius: '50%' }}>
-                            {getInitials(item.handle)}
-                          </div>
-                          {item.handle}
-                        </td>
-                        <td className="px-5 py-[15px] text-sm font-semibold" style={{ color: '#f87171' }}>
-                          {item.blockCount} times
-                        </td>
-                        <td className="px-5 py-[15px] text-sm text-text-secondary">
-                          {new Date(item.createdAt).toLocaleString()}
-                        </td>
+                <div className="inner-glass-content-area">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr>
+                        {['TARGET HANDLE', 'BLOCK COUNT', 'DATE INITIALIZED'].map((h, i) => (
+                          <th key={h} className="text-left px-5 py-3 text-text-secondary text-[11px] font-semibold uppercase tracking-wider border-b border-border-theme/40">{h}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {analyticsData.map((item, idx) => (
+                        <tr 
+                          key={item._id || idx} 
+                          className="border-b border-border-theme/30 hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+                        >
+                          <td className="px-5 py-[12px] text-sm text-text-primary font-medium flex items-center">
+                            <div className="w-7 h-7 rounded-full bg-[#1e3a8a]/20 text-[#60a5fa] flex items-center justify-center text-xs font-bold mr-3" style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1px solid rgba(96, 165, 250, 0.2)' }}>
+                              {getInitials(item.handle)}
+                            </div>
+                            {item.handle}
+                          </td>
+                          <td className="px-5 py-[12px] text-sm font-semibold">
+                            <span className="bg-[#8b5cf6]/10 text-[#a78bfa] px-2 py-0.5 rounded-full text-xs font-semibold border border-[#8b5cf6]/15">
+                              {item.blockCount} times
+                            </span>
+                          </td>
+                          <td className="px-5 py-[12px] text-sm text-text-secondary">
+                            {new Date(item.createdAt).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </>

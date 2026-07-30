@@ -79,6 +79,21 @@ export default function App() {
     return history;
   });
 
+  const [totalWhitelistDisplayed, setTotalWhitelistDisplayed] = useState(() => {
+    return isChromeExtension ? 0 : 124; // mock total for dev mode
+  });
+  const [whitelistDisplayHistory, setWhitelistDisplayHistory] = useState(() => {
+    if (isChromeExtension) return {};
+    const history = {};
+    const today = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      history[key] = [12, 25, 18, 30, 15, 20, 14][i]; // mock values for whitelisted videos displayed
+    }
+    return history;
+  });
+
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('theme');
     if (saved) return saved;
@@ -96,11 +111,13 @@ export default function App() {
 
   useEffect(() => {
     if (!isChromeExtension) return;
-    chrome.storage.local.get(['blockedChannels', 'whitelistedChannels', 'totalNukes', 'nukeHistory'], (result) => {
+    chrome.storage.local.get(['blockedChannels', 'whitelistedChannels', 'totalNukes', 'nukeHistory', 'totalWhitelistDisplayed', 'whitelistDisplayHistory'], (result) => {
       if (result.blockedChannels) setChannels(result.blockedChannels);
       if (result.whitelistedChannels) setWhitelistedChannels(result.whitelistedChannels);
       if (result.totalNukes !== undefined) setTotalNukes(result.totalNukes);
       if (result.nukeHistory) setNukeHistory(result.nukeHistory);
+      if (result.totalWhitelistDisplayed !== undefined) setTotalWhitelistDisplayed(result.totalWhitelistDisplayed);
+      if (result.whitelistDisplayHistory) setWhitelistDisplayHistory(result.whitelistDisplayHistory);
     });
 
     const handleStorageChange = (changes, namespace) => {
@@ -109,6 +126,8 @@ export default function App() {
         if (changes.whitelistedChannels) setWhitelistedChannels(changes.whitelistedChannels.newValue || []);
         if (changes.totalNukes) setTotalNukes(changes.totalNukes.newValue || 0);
         if (changes.nukeHistory) setNukeHistory(changes.nukeHistory.newValue || {});
+        if (changes.totalWhitelistDisplayed) setTotalWhitelistDisplayed(changes.totalWhitelistDisplayed.newValue || 0);
+        if (changes.whitelistDisplayHistory) setWhitelistDisplayHistory(changes.whitelistDisplayHistory.newValue || {});
       }
     };
     chrome.storage.onChanged.addListener(handleStorageChange);
@@ -409,6 +428,29 @@ export default function App() {
   const maxVal = Math.max(...sevenDays.map(d => d.count), 5);
   const linePath = sevenDays.map((d, i) => `${i === 0 ? 'M' : 'L'} ${i * 50} ${100 - (d.count / maxVal) * 90}`).join(' ');
   const areaPath = `${linePath} L 300 120 L 0 120 Z`;
+
+  const getSevenDayWhitelistStats = () => {
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const today = new Date();
+    const stats = [];
+    
+    // Get last 7 days starting from 6 days ago up to today
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const count = whitelistDisplayHistory[key] || 0;
+      stats.push({
+        label: daysOfWeek[d.getDay()],
+        count: count
+      });
+    }
+    return stats;
+  };
+
+  const sevenDaysWhitelist = getSevenDayWhitelistStats();
+  const maxValWhitelist = Math.max(...sevenDaysWhitelist.map(d => d.count), 5);
+  const linePathWhitelist = sevenDaysWhitelist.map((d, i) => `${i === 0 ? 'M' : 'L'} ${i * 50} ${100 - (d.count / maxValWhitelist) * 90}`).join(' ');
+  const areaPathWhitelist = `${linePathWhitelist} L 300 120 L 0 120 Z`;
 
   const normalizedChannels = channels.map(c => typeof c === 'string' ? c : c.name || 'Unknown');
 
@@ -889,7 +931,7 @@ export default function App() {
                           </td>
                           <td className="px-5 py-[15px] text-right">
                             <button
-                              onClick={() => removeChannel(name)}
+                              onClick={() => removeChannel(ch)}
                               className="bg-transparent border-none text-text-secondary cursor-pointer text-base hover:text-accent-red"
                               title="Remove Target"
                             >
@@ -967,7 +1009,7 @@ export default function App() {
             <div className="grid grid-cols-3 gap-5 mb-6">
               {[
                 { label: 'Whitelisted Targets', value: whitelistedChannels.length, color: 'text-text-primary' },
-                { label: 'Cache Status', value: '4 Hours Active', color: 'text-text-primary' },
+                { label: 'Videos Displayed', value: totalWhitelistDisplayed, color: 'text-text-primary' },
                 { label: 'DB Status', value: dbStatus, color: dbStatus === 'Connected' ? 'text-accent-green' : 'text-accent-red' },
               ].map(({ label, value, color }) => (
                 <div
@@ -988,8 +1030,12 @@ export default function App() {
               ))}
             </div>
 
-            {/* Whitelisted Target Sequence Chart */}
-            <div className="grid grid-cols-1 gap-5 mb-8" style={{ height: '220px' }}>
+            {/* Dual Chart Layout (50/50 Split - 2 Separate Glass Cards Side-by-Side) */}
+            <div
+              className="grid grid-cols-2 gap-5 mb-8"
+              style={{ height: '310px' }}
+            >
+              {/* Left Chart Card: Whitelisted Target Sequence */}
               <div
                 className="rounded-lg p-5 flex flex-col h-full overflow-hidden"
                 style={styles.card}
@@ -1037,6 +1083,55 @@ export default function App() {
                   </div>
                 )}
               </div>
+
+              {/* Right Chart Card: Videos Displayed Frequency */}
+              <div
+                className="rounded-lg p-5 flex flex-col h-full"
+                style={styles.card}
+              >
+                <h3 className="m-0 mb-3 text-sm font-semibold text-text-primary uppercase tracking-wider">Videos Displayed (7 Days)</h3>
+                <div className="flex-1 relative w-full flex flex-col justify-between">
+                  <svg className="w-full h-[210px]" viewBox="0 0 300 120" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="areaGradientWhitelist" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--accent-blue)" stopOpacity="0.22" />
+                        <stop offset="100%" stopColor="var(--accent-blue)" stopOpacity="0.0" />
+                      </linearGradient>
+                      <filter id="glowWhitelist" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                      </filter>
+                    </defs>
+                    {/* Grid Lines */}
+                    <line x1="0" y1="30" x2="300" y2="30" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+                    <line x1="0" y1="60" x2="300" y2="60" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+                    <line x1="0" y1="90" x2="300" y2="90" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+
+                    {/* Area under the line (Dynamic) */}
+                    <path
+                      d={areaPathWhitelist}
+                      fill="url(#areaGradientWhitelist)"
+                    />
+
+                    {/* Glowing Stroke Path (Dynamic) */}
+                    <path
+                      d={linePathWhitelist}
+                      fill="none"
+                      stroke="var(--accent-blue)"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      strokeOpacity="0.65"
+                      filter="url(#glowWhitelist)"
+                    />
+                  </svg>
+                  {/* Axis labels (Dynamic Rolling Days) */}
+                  <div className="flex justify-between text-[10px] text-text-secondary font-medium mt-1.5 px-1">
+                    {sevenDaysWhitelist.map((d, i) => (
+                      <span key={i}>{d.label}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Table */}
@@ -1078,7 +1173,7 @@ export default function App() {
                           </td>
                           <td className="px-5 py-[15px] text-right">
                             <button
-                              onClick={() => removeWhitelistedChannel(name)}
+                              onClick={() => removeWhitelistedChannel(ch)}
                               className="bg-transparent border-none text-text-secondary cursor-pointer text-base hover:text-accent-red"
                               title="Remove Whitelist"
                             >

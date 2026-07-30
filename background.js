@@ -97,6 +97,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
+    if (request.action === "logWhitelistDisplayed") {
+        const countToAdd = request.count || 0;
+        chrome.storage.local.get(['totalWhitelistDisplayed', 'whitelistDisplayHistory'], (result) => {
+            const totalWhitelist = (result.totalWhitelistDisplayed || 0) + countToAdd;
+            const whitelistHistory = result.whitelistDisplayHistory || {};
+            
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            
+            whitelistHistory[dateStr] = (whitelistHistory[dateStr] || 0) + countToAdd;
+            
+            chrome.storage.local.set({ totalWhitelistDisplayed: totalWhitelist, whitelistDisplayHistory: whitelistHistory }, () => {
+                sendResponse({ success: true, totalWhitelistDisplayed: totalWhitelist, whitelistDisplayHistory: whitelistHistory });
+            });
+        });
+        return true;
+    }
+
     if (request.action === "fetchLatestVideos") {
         fetchLatestVideos(request.channelHandle)
             .then(videos => {

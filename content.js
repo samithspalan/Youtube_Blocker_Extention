@@ -360,6 +360,15 @@ function renderWhitelistedFeed(container) {
                         </div>
                     </a>
                 `).join('');
+
+                // Log the displayed videos count to extension storage
+                chrome.runtime.sendMessage({ action: 'logWhitelistDisplayed', count: interleavedVideos.length }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.log("Error sending logWhitelistDisplayed message:", chrome.runtime.lastError.message);
+                    } else {
+                        console.log("Logged whitelisted videos display count:", interleavedVideos.length);
+                    }
+                });
             }
         }
     });

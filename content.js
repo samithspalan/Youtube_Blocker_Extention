@@ -433,7 +433,76 @@ chrome.storage.local.get(['blockedChannels'], (result) => {
         console.log("⚠️ [Stealth Blocker] Storage is empty or undefined!");
     }
     injectWhitelistedFeed();
+    checkVideoTrack();
 });
+
+// Telemetry tracker for channel time spent
+let lastVideoId = '';
+
+function checkVideoTrack() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const videoId = urlParams.get('v');
+    if (!videoId) {
+        if (lastVideoId) {
+            lastVideoId = '';
+            try {
+                chrome.runtime.sendMessage({ type: 'YT_VIDEO_UNTRACK' });
+            } catch (e) {}
+        }
+        return;
+    }
+    
+    if (videoId !== lastVideoId) {
+        lastVideoId = videoId;
+        attemptScrape(videoId, 0);
+    }
+}
+
+function attemptScrape(videoId, retries = 0) {
+    if (videoId !== lastVideoId) return; // Stale request
+    
+    const channelNameEl = document.querySelector('#upload-info .ytd-channel-name a, #upload-info .ytd-channel-name, ytd-video-owner-renderer #channel-name a, ytd-channel-name #text');
+    if (!channelNameEl || !channelNameEl.textContent.trim()) {
+        if (retries < 15) {
+            setTimeout(() => attemptScrape(videoId, retries + 1), 1000);
+        }
+        return;
+    }
+    
+    const channelName = channelNameEl.textContent.trim();
+    
+    // Auto-Classification Heuristic
+    const descriptionEl = document.querySelector('#description-inline-expander, ytd-text-inline-expander, #description');
+    const descriptionText = descriptionEl ? descriptionEl.textContent.toLowerCase() : '';
+    
+    const genreMeta = document.querySelector('meta[itemprop="genre"]');
+    const genreText = genreMeta ? genreMeta.getAttribute('content').toLowerCase() : '';
+    
+    const combinedText = (descriptionText + ' ' + genreText).toLowerCase();
+    const studyKeywords = ['tutorial', 'course', 'learn', 'code', 'study', 'education', 'programming', 'development', 'lecture', 'science', 'math'];
+    
+    let category = "Distraction";
+    for (const word of studyKeywords) {
+        if (combinedText.includes(word)) {
+            category = "Study";
+            break;
+        }
+    }
+    
+    console.log(`📊 [Stealth Blocker] Tracked channel: ${channelName} | Class: ${category}`);
+    
+    try {
+        chrome.runtime.sendMessage({
+            type: 'YT_VIDEO_TRACK',
+            payload: {
+                channel: channelName,
+                category: category
+            }
+        });
+    } catch (e) {
+        console.error("Error sending telemetry tracking message:", e);
+    }
+}
 
 // Throttle MutationObserver execution with requestAnimationFrame
 let rafId = null;
@@ -442,10 +511,26 @@ const observer = new MutationObserver(() => {
         rafId = requestAnimationFrame(() => {
             nukeBlockedChannels();
             injectWhitelistedFeed();
+            checkVideoTrack();
             rafId = null;
         });
     }
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
+
+// Listen for tab focus/unfocus to report precise watching periods
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        checkVideoTrack();
+    } else {
+        if (lastVideoId) {
+            lastVideoId = '';
+            try {
+                chrome.runtime.sendMessage({ type: 'YT_VIDEO_UNTRACK' });
+            } catch (e) {}
+        }
+    }
+});
+
 console.log("👀 [Stealth Blocker] DOM Observer Active with rAF throttling...");

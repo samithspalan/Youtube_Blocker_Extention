@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import AnalyticsCharts from './AnalyticsCharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 
 // Guard: true only when running as a real Chrome extension
 const isChromeExtension = typeof chrome !== 'undefined' && !!chrome.storage;
@@ -68,6 +69,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('command');
   const [analyticsData, setAnalyticsData] = useState([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [timeFilter, setTimeFilter] = useState('Distraction');
+  const [timeData, setTimeData] = useState(null);
+  const [timeLoading, setTimeLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
 
@@ -213,6 +217,60 @@ export default function App() {
       .finally(() => {
         setAnalyticsLoading(false);
       });
+  }, [channels]);
+
+  const generateMockTimeData = () => {
+    setTimeData({
+      dailyTrend: [
+        { label: 'Fri', studyHours: 1.5, distractionHours: 2.0, totalHours: 3.5 },
+        { label: 'Sat', studyHours: 2.1, distractionHours: 2.3, totalHours: 4.4 },
+        { label: 'Sun', studyHours: 3.0, distractionHours: 3.2, totalHours: 6.2 },
+        { label: 'Mon', studyHours: 4.0, distractionHours: 1.5, totalHours: 5.5 },
+        { label: 'Tue', studyHours: 1.8, distractionHours: 2.2, totalHours: 4.0 },
+        { label: 'Wed', studyHours: 4.5, distractionHours: 3.5, totalHours: 8.0 },
+        { label: 'Thu', studyHours: 2.2, distractionHours: 1.8, totalHours: 4.0 }
+      ],
+      breakdown: {
+        study: 13.5 * 60 * 60 * 1000,
+        distraction: 22.0 * 60 * 60 * 1000,
+        total: 35.5 * 60 * 60 * 1000
+      },
+      channels: [
+        { name: 'Sameer MD : Horror', category: 'Distraction', timeSpent: 3.35 * 60 * 60 * 1000 },
+        { name: 'Sourav Joshi Vlogs', category: 'Distraction', timeSpent: 2.75 * 60 * 60 * 1000 },
+        { name: 'MrBeast', category: 'Distraction', timeSpent: 1.63 * 60 * 60 * 1000 },
+        { name: 'cocoxkaith', category: 'Distraction', timeSpent: 1.2 * 60 * 60 * 1000 },
+        { name: 'freeCodeCamp.org', category: 'Study', timeSpent: 4.5 * 60 * 60 * 1000 },
+        { name: 'Academind', category: 'Study', timeSpent: 3.1 * 60 * 60 * 1000 },
+        { name: 'The Net Ninja', category: 'Study', timeSpent: 2.4 * 60 * 60 * 1000 },
+        { name: 'Traversy Media', category: 'Study', timeSpent: 1.5 * 60 * 60 * 1000 },
+        { name: '3Blue1Brown', category: 'Study', timeSpent: 2.0 * 60 * 60 * 1000 }
+      ]
+    });
+  };
+
+  const fetchTimeAnalytics = () => {
+    setTimeLoading(true);
+    fetch('http://localhost:5000/api/time/analytics')
+      .then(res => res.json())
+      .then(resJson => {
+        if (resJson.success && resJson.data) {
+          setTimeData(resJson.data);
+        } else {
+          generateMockTimeData();
+        }
+      })
+      .catch(err => {
+        console.log("Failed to fetch time analytics, using fallback mock data:", err);
+        generateMockTimeData();
+      })
+      .finally(() => {
+        setTimeLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    fetchTimeAnalytics();
   }, [channels]);
 
   const generateFallbackAnalytics = () => {
@@ -798,6 +856,23 @@ export default function App() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mr-3" style={{ color: activeTab === 'analytics' ? 'var(--accent-blue)' : 'inherit' }}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
               Analytics
             </button>
+            <button
+              onClick={() => setActiveTab('time')}
+              className="flex items-center px-5 py-2.5 text-sm cursor-pointer border-none bg-transparent text-left outline-none transition-all w-[calc(100%-20px)] mx-2.5"
+              style={activeTab === 'time' ? {
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)',
+                border: '1px solid rgba(96, 165, 250, 0.3)',
+                boxShadow: 'inset 0 0 12px rgba(96, 165, 250, 0.2)',
+                borderRadius: '10px',
+                color: theme === 'dark' ? '#ffffff' : 'var(--accent-blue)',
+                fontWeight: '600'
+              } : {
+                color: 'var(--text-secondary)'
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mr-3" style={{ color: activeTab === 'time' ? 'var(--accent-blue)' : 'inherit' }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Time Spent
+            </button>
           </div>
 
           {/* SYSTEM section — pushed to bottom */}
@@ -1182,7 +1257,7 @@ export default function App() {
               </div>
             </div>
           </>
-        ) : (
+        ) : activeTab === 'analytics' ? (
           <>
             {/* Header row */}
             <div className="flex justify-between items-center mb-8">
@@ -1406,6 +1481,326 @@ export default function App() {
                   </table>
                 </div>
               )}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Title Row */}
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h1 className="m-0 text-[24px] font-bold text-text-primary tracking-tight">Time Spent</h1>
+                <p className="m-0 text-sm text-text-secondary mt-1">Track your daily YouTube usage and activity breakdown</p>
+              </div>
+              <button
+                onClick={fetchTimeAnalytics}
+                className="text-text-primary px-4 py-2 flex items-center gap-2 cursor-pointer hover:opacity-80 transition-all"
+                style={{
+                  background: 'var(--glass-bg-pill)',
+                  border: '1px solid var(--glass-border-pill)',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: 500
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                Refresh Data
+              </button>
+            </div>
+
+            {/* Daily Time Spent & Time Breakdown Charts */}
+            <div className="grid grid-cols-3 gap-5 mb-8">
+              {/* Daily Time Spent BarChart (spans 2 columns) */}
+              <div 
+                className="col-span-2 p-5 rounded-xl flex flex-col justify-between"
+                style={{
+                  background: 'rgba(18, 22, 32, 0.6)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  height: '320px',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <h3 className="m-0 mb-3 text-sm font-semibold text-text-primary uppercase tracking-wider flex items-center gap-2">
+                  <span>🕒</span> Daily Time Spent
+                </h3>
+                <div className="flex-1 w-full min-h-0">
+                  {timeData && timeData.dailyTrend ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={timeData.dailyTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid stroke="rgba(255, 255, 255, 0.05)" vertical={false} />
+                        <XAxis dataKey="label" stroke="#4b5563" fontSize={11} tickLine={false} />
+                        <YAxis 
+                          stroke="#4b5563" 
+                          fontSize={11} 
+                          tickLine={false} 
+                          axisLine={false}
+                          tickFormatter={(val) => `${val}h`}
+                        />
+                        <Tooltip 
+                          contentStyle={{ background: '#121620', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                          labelStyle={{ color: '#fff', fontWeight: 'bold' }}
+                          itemStyle={{ color: '#60a5fa' }}
+                        />
+                        <Bar 
+                          dataKey="totalHours" 
+                          fill="#60a5fa" 
+                          radius={[6, 6, 0, 0]}
+                          barSize={30} 
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-text-secondary text-sm">Loading trend data...</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Time Breakdown Donut Chart (spans 1 column) */}
+              <div 
+                className="p-5 rounded-xl flex flex-col justify-between"
+                style={{
+                  background: 'rgba(18, 22, 32, 0.6)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  height: '320px',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <h3 className="m-0 mb-3 text-sm font-semibold text-text-primary uppercase tracking-wider">
+                  Time Breakdown
+                </h3>
+                <div className="flex-1 w-full min-h-0 relative flex items-center justify-center">
+                  {timeData && timeData.breakdown ? (
+                    (() => {
+                      const studyVal = timeData.breakdown.study || 0;
+                      const distractionVal = timeData.breakdown.distraction || 0;
+                      const totalVal = studyVal + distractionVal || 1;
+                      
+                      const studyPct = Math.round((studyVal / totalVal) * 100);
+                      const distractionPct = 100 - studyPct;
+                      
+                      const dominantPct = distractionVal > studyVal ? distractionPct : studyPct;
+                      const dominantLabel = distractionVal > studyVal ? "Distraction" : "Study";
+                      const dominantColor = distractionVal > studyVal ? "#f87171" : "#4ade80";
+
+                      const pieData = [
+                        { name: 'Study', value: studyVal, color: '#4ade80' },
+                        { name: 'Distraction', value: distractionVal, color: '#f87171' }
+                      ];
+
+                      // Formatter to convert ms to Xh Ym
+                      const formatDuration = (ms) => {
+                        const totalMin = Math.round(ms / 60000);
+                        const h = Math.floor(totalMin / 60);
+                        const m = totalMin % 60;
+                        return `${h}h ${m}m`;
+                      };
+
+                      return (
+                        <div className="w-full h-full flex flex-col items-center justify-between">
+                          <div className="relative w-full h-[150px] flex items-center justify-center">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie
+                                  data={pieData}
+                                  cx="50%"
+                                  cy="50%"
+                                  innerRadius="60%"
+                                  outerRadius="80%"
+                                  paddingAngle={3}
+                                  dataKey="value"
+                                >
+                                  {pieData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                  ))}
+                                </Pie>
+                              </PieChart>
+                            </ResponsiveContainer>
+                            <div className="absolute flex flex-col items-center justify-center">
+                              <span style={{ fontSize: '24px', fontWeight: '800', color: dominantColor }}>
+                                {dominantPct}%
+                              </span>
+                              <span style={{ fontSize: '10px', color: '#8b949e', textTransform: 'uppercase', marginTop: '2px' }}>
+                                {dominantLabel}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="w-full flex flex-col gap-1.5 px-2">
+                            <div className="flex justify-between items-center text-xs">
+                              <div className="flex items-center gap-1.5 text-text-secondary">
+                                <span className="w-2.5 h-2.5 rounded-full bg-[#f87171]" />
+                                <span>Distraction</span>
+                              </div>
+                              <span className="font-semibold text-text-primary">
+                                {distractionPct}% ({formatDuration(distractionVal)})
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs">
+                              <div className="flex items-center gap-1.5 text-text-secondary">
+                                <span className="w-2.5 h-2.5 rounded-full bg-[#4ade80]" />
+                                <span>Study</span>
+                              </div>
+                              <span className="font-semibold text-text-primary">
+                                {studyPct}% ({formatDuration(studyVal)})
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    <div className="text-text-secondary text-sm">Loading breakdown...</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Filter Toggle Buttons */}
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-sm text-text-secondary">Showing details for:</span>
+              <button
+                onClick={() => setTimeFilter('Distraction')}
+                className="px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all border outline-none"
+                style={{
+                  background: timeFilter === 'Distraction' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                  borderColor: timeFilter === 'Distraction' ? '#f87171' : 'rgba(255, 255, 255, 0.1)',
+                  color: timeFilter === 'Distraction' ? '#f87171' : '#8b949e',
+                  boxShadow: timeFilter === 'Distraction' ? '0 0 10px rgba(239, 68, 68, 0.25)' : 'none'
+                }}
+              >
+                Distraction
+              </button>
+              <button
+                onClick={() => setTimeFilter('Study')}
+                className="px-4 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all border outline-none"
+                style={{
+                  background: timeFilter === 'Study' ? 'rgba(74, 222, 128, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                  borderColor: timeFilter === 'Study' ? '#4ade80' : 'rgba(255, 255, 255, 0.1)',
+                  color: timeFilter === 'Study' ? '#4ade80' : '#8b949e',
+                  boxShadow: timeFilter === 'Study' ? '0 0 10px rgba(74, 222, 128, 0.25)' : 'none'
+                }}
+              >
+                Study
+              </button>
+            </div>
+
+            {/* Top Channels Table - Nested Glass Shadow Container */}
+            <div className="outer-glass-container mb-8">
+              <div className="outer-header-row flex justify-between items-center">
+                <div className="parent-title-group flex items-center">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mr-2" style={{ color: timeFilter === 'Distraction' ? '#f87171' : '#4ade80', filter: `drop-shadow(0 0 4px ${timeFilter === 'Distraction' ? '#f87171' : '#4ade80'})` }}>
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                  </svg>
+                  <h3 className="parent-title m-0 text-base font-semibold text-text-primary">
+                    Top Channels by Time Spent ({timeFilter})
+                  </h3>
+                </div>
+                <div className="cursor-pointer text-text-secondary hover:text-text-primary p-1">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                </div>
+              </div>
+
+              <div className="inner-glass-content-area">
+                {(() => {
+                  if (!timeData || !timeData.channels) {
+                    return <div className="p-10 text-center text-text-secondary text-sm">Loading channels data...</div>;
+                  }
+
+                  const filteredChannels = timeData.channels.filter(c => c.category === timeFilter);
+                  
+                  if (filteredChannels.length === 0) {
+                    return (
+                      <div className="p-10 text-center text-text-secondary text-sm">
+                        No activity recorded for {timeFilter} channels.
+                      </div>
+                    );
+                  }
+
+                  // Max time spent inside filtered subset for calculating percentages
+                  const maxTime = Math.max(...timeData.channels.map(c => c.timeSpent), 1);
+
+                  // Formatter for ms to Xh Ym
+                  const formatDuration = (ms) => {
+                    const totalMin = Math.round(ms / 60000);
+                    const h = Math.floor(totalMin / 60);
+                    const m = totalMin % 60;
+                    if (h === 0) return `${m}m`;
+                    return `${h}h ${m}m`;
+                  };
+
+                  return (
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr>
+                          {['CHANNEL', 'CATEGORY', 'TIME SPENT', 'PERCENTAGE'].map((h) => (
+                            <th key={h} className="text-left px-5 py-3 text-text-secondary text-[11px] font-semibold uppercase tracking-wider border-b border-border-theme/40">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredChannels.slice(0, 5).map((item, idx) => {
+                          const pct = ((item.timeSpent / maxTime) * 100).toFixed(1);
+                          const barColor = item.category === 'Study' ? '#4ade80' : '#f87171';
+                          
+                          return (
+                            <tr key={idx} className="border-b border-border-theme/30 hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                              {/* Channel */}
+                              <td className="px-5 py-[12px] text-sm text-text-primary font-medium flex items-center">
+                                <div 
+                                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold mr-3"
+                                  style={{
+                                    background: item.category === 'Study' ? 'rgba(74, 222, 128, 0.15)' : 'rgba(248, 113, 113, 0.15)',
+                                    color: item.category === 'Study' ? '#4ade80' : '#f87171',
+                                    border: `1px solid ${item.category === 'Study' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(248, 113, 113, 0.2)'}`
+                                  }}
+                                >
+                                  {getInitials(item.name)}
+                                </div>
+                                <span>{item.name}</span>
+                              </td>
+                              {/* Category */}
+                              <td className="px-5 py-[12px] text-sm">
+                                <span 
+                                  className="px-2 py-0.5 rounded-full text-xs font-semibold border"
+                                  style={{
+                                    background: item.category === 'Study' ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)',
+                                    color: item.category === 'Study' ? '#4ade80' : '#f87171',
+                                    borderColor: item.category === 'Study' ? 'rgba(74, 222, 128, 0.15)' : 'rgba(248, 113, 113, 0.15)'
+                                  }}
+                                >
+                                  {item.category}
+                                </span>
+                              </td>
+                              {/* Time spent */}
+                              <td className="px-5 py-[12px] text-sm font-semibold" style={{ color: barColor }}>
+                                {formatDuration(item.timeSpent)}
+                              </td>
+                              {/* Percentage bar */}
+                              <td className="px-5 py-[12px] text-sm">
+                                <div className="flex items-center gap-3 w-full">
+                                  <span className="text-xs text-text-secondary font-medium w-10">{pct}%</span>
+                                  <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden max-w-[200px]">
+                                    <div 
+                                      style={{
+                                        width: `${pct}%`,
+                                        background: barColor,
+                                        height: '100%',
+                                        borderRadius: '9999px'
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+              </div>
             </div>
           </>
         )}

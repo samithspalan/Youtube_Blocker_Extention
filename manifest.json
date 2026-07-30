@@ -9,7 +9,8 @@
     "128": "icon.png"
   },
   "permissions": [
-    "storage"
+    "storage",
+    "idle"
   ],
   "host_permissions": [
     "*://suggestqueries.google.com/*"

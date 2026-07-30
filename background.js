@@ -18,6 +18,29 @@ async function getApiKey() {
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === 'YT_VIDEO_TRACK') {
+        const { channel, category } = request.payload;
+        const senderTabId = sender.tab?.id;
+        
+        flushTrackingSession();
+        
+        currentTracking = {
+            channelName: channel,
+            category: category,
+            startTime: Date.now(),
+            tabId: senderTabId
+        };
+        console.log(`⏱️ [Stealth Background] Tracking: ${channel} (${category}) on tab ${senderTabId}`);
+        sendResponse({ success: true });
+        return;
+    }
+
+    if (request.type === 'YT_VIDEO_UNTRACK') {
+        flushTrackingSession();
+        sendResponse({ success: true });
+        return;
+    }
+
     if (request.action === "fetchSuggestions") {
         getApiKey().then(apiKey => {
             if (!apiKey) {
@@ -263,3 +286,91 @@ async function fetchLatestVideos(channelHandle) {
 
     return videos;
 }
+
+// Time tracking state machine
+let currentTracking = {
+    channelName: null,
+    category: null,
+    startTime: null,
+    tabId: null
+};
+
+function flushTrackingSession() {
+    if (!currentTracking.channelName || !currentTracking.startTime) return;
+    
+    const durationMs = Date.now() - currentTracking.startTime;
+    if (durationMs >= 1000) { // Keep track if duration >= 1 second
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        
+        const payload = {
+            channelName: currentTracking.channelName,
+            category: currentTracking.category,
+            durationMs: durationMs,
+            date: dateStr
+        };
+        
+        console.log(`⏱️ [Stealth Background] Logging duration: ${durationMs}ms for channel ${currentTracking.channelName}`);
+        
+        fetch('http://localhost:5000/api/time/log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            console.log("⏱️ [Stealth Background] Backend response:", data);
+        })
+        .catch(err => {
+            console.error("⏱️ [Stealth Background] Error sending time log:", err);
+        });
+    }
+    
+    // Clear the tracking session
+    currentTracking = {
+        channelName: null,
+        category: null,
+        startTime: null,
+        tabId: null
+    };
+}
+
+// Track tab activation
+chrome.tabs.onActivated.addListener((activeInfo) => {
+    if (currentTracking.tabId && activeInfo.tabId !== currentTracking.tabId) {
+        flushTrackingSession();
+    }
+});
+
+// Track window focus changes
+chrome.windows.onFocusChanged.addListener((windowId) => {
+    // Focus lost or changed - flush session
+    flushTrackingSession();
+});
+
+// Track tab updates (URLs changing)
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (currentTracking.tabId === tabId && changeInfo.status === 'loading') {
+        flushTrackingSession();
+    }
+});
+
+// Track tab removal
+chrome.tabs.onRemoved.addListener((tabId) => {
+    if (currentTracking.tabId === tabId) {
+        flushTrackingSession();
+    }
+});
+
+// Set idle check interval to 15 seconds
+chrome.idle.setDetectionInterval(15);
+
+// Track idle state changes
+chrome.idle.onStateChanged.addListener((state) => {
+    if (state === 'idle' || state === 'locked') {
+        flushTrackingSession();
+    }
+});

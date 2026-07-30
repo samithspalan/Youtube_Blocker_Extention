@@ -462,111 +462,186 @@ export default function App() {
   // TOOLBAR POPUP VIEW
   // ============================================
   if (isPopup) {
+    const popupStyles = {
+      container: {
+        background: 'rgba(15, 20, 25, 0.45)',
+        backdropFilter: 'blur(24px) saturate(150%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(150%)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        borderRadius: '16px',
+        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.4)',
+      },
+      header: {
+        background: 'transparent',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+      },
+      inputRow: {
+        background: 'rgba(255, 255, 255, 0.03)',
+        border: '1px solid rgba(255, 255, 255, 0.05)',
+        borderRadius: '12px',
+      },
+      input: {
+        background: 'transparent',
+        border: 'none',
+        outline: 'none',
+        color: 'white',
+      },
+      blockBtn: {
+        background: 'rgba(239, 68, 68, 0.15)',
+        border: '1px solid rgba(239, 68, 68, 0.4)',
+        color: '#f87171',
+        boxShadow: '0 0 12px rgba(239, 68, 68, 0.25)',
+        borderRadius: '8px',
+      },
+      whitelistBtn: {
+        background: 'rgba(59, 130, 246, 0.15)',
+        border: '1px solid rgba(59, 130, 246, 0.4)',
+        color: '#60a5fa',
+        boxShadow: '0 0 12px rgba(59, 130, 246, 0.25)',
+        borderRadius: '8px',
+      },
+      statsPill: {
+        background: 'rgba(0, 0, 0, 0.4)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '9999px',
+        color: '#60a5fa',
+      },
+      dashboardBtn: {
+        background: 'rgba(59, 130, 246, 0.15)',
+        border: '1px solid rgba(59, 130, 246, 0.4)',
+        color: '#60a5fa',
+        boxShadow: '0 0 12px rgba(59, 130, 246, 0.25)',
+        borderRadius: '12px',
+      }
+    };
+
     return (
-      <div className="flex flex-col w-[360px] h-[400px] bg-bg-dark font-sans">
+      <div className="flex flex-col w-[360px] h-[400px] font-sans" style={popupStyles.container}>
         {/* Header */}
-        <div className="flex justify-between items-center px-5 py-[15px] bg-bg-sidebar border-b border-border-theme">
-          <h2 className="m-0 text-[15px] font-semibold text-text-primary">🛡️ YT Stealth Blocker</h2>
-          <span className="text-xs font-semibold text-text-secondary">🟢 Active</span>
+        <div className="flex justify-between items-center px-5 py-[15px]" style={popupStyles.header}>
+          <h2 className="m-0 text-[15px] font-semibold text-text-primary flex items-center gap-2">
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </span>
+            YT Stealth Blocker
+          </h2>
+          <span className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }}></span>
+            Active
+          </span>
         </div>
 
-        <div className="flex-1 p-5 flex flex-col min-h-0">
-          {/* Input 1: Block */}
-          <div className="relative w-full mb-3">
-            <div className="flex items-center bg-bg-sidebar border border-border-theme rounded-md overflow-hidden">
-              <span className="px-2.5 text-text-secondary">🛡️</span>
-              <input
-                value={blockInput}
-                onChange={(e) => setBlockInput(e.target.value)}
-                onFocus={() => setFocusedInput('block')}
-                onBlur={() => setTimeout(() => setFocusedInput(null), 200)}
-                placeholder="Target channel to block..."
-                className="flex-1 bg-transparent border-none text-text-primary py-2.5 outline-none text-[13px]"
-              />
-              <button
-                onClick={() => handleBlock(blockInput)}
-                className="bg-accent-red text-white border-none px-4 py-2 cursor-pointer font-bold text-[13px]"
-              >
-                Block
-              </button>
+        <div className="flex-1 p-5 flex flex-col min-h-0 justify-between">
+          {/* Inputs section wrapper */}
+          <div className="flex flex-col gap-4">
+            {/* Input 1: Block */}
+            <div className="relative w-full">
+              <div className="flex items-center overflow-hidden" style={popupStyles.inputRow}>
+                <span className="px-2.5 text-text-secondary flex items-center justify-center" style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'rgba(255,255,255,0.02)', margin: '4px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2.5" style={{ opacity: 0.8 }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </span>
+                <input
+                  value={blockInput}
+                  onChange={(e) => setBlockInput(e.target.value)}
+                  onFocus={() => setFocusedInput('block')}
+                  onBlur={() => setTimeout(() => setFocusedInput(null), 200)}
+                  placeholder="Target channel to block..."
+                  className="flex-1 bg-transparent border-none text-text-primary py-2.5 outline-none text-[13px]"
+                  style={popupStyles.input}
+                />
+                <button
+                  onClick={() => handleBlock(blockInput)}
+                  className="border-none px-4 py-2.5 cursor-pointer font-bold text-[13px] mr-1.5"
+                  style={popupStyles.blockBtn}
+                >
+                  Block
+                </button>
+              </div>
+              {focusedInput === 'block' && suggestions.length > 0 && (
+                <ul className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border-theme rounded-md p-0 m-0 list-none z-50 max-h-[120px] overflow-y-auto shadow-lg">
+                  {suggestions.map((s, i) => (
+                    <li
+                      key={i}
+                      onMouseDown={(e) => { e.preventDefault(); handleBlock(s); }}
+                      className="p-3 cursor-pointer border-b border-border-theme text-[14px] text-text-primary hover:bg-bg-hover flex items-center gap-2.5"
+                    >
+                      {s.thumbnail ? (
+                        <img
+                          src={s.thumbnail}
+                          alt={s.name}
+                          className="w-6 h-6 rounded-full object-cover border border-white/10"
+                        />
+                      ) : (
+                        <span className="w-6 h-6 rounded-full bg-accent-blue/20 flex items-center justify-center text-[10px]">👤</span>
+                      )}
+                      <span className="font-medium truncate">{s.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            {focusedInput === 'block' && suggestions.length > 0 && (
-              <ul className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border-theme rounded-md p-0 m-0 list-none z-50 max-h-[120px] overflow-y-auto shadow-lg">
-                {suggestions.map((s, i) => (
-                  <li
-                    key={i}
-                    onMouseDown={(e) => { e.preventDefault(); handleBlock(s); }}
-                    className="p-3 cursor-pointer border-b border-border-theme text-[14px] text-text-primary hover:bg-bg-hover flex items-center gap-2.5"
-                  >
-                    {s.thumbnail ? (
-                      <img
-                        src={s.thumbnail}
-                        alt={s.name}
-                        className="w-6 h-6 rounded-full object-cover border border-white/10"
-                      />
-                    ) : (
-                      <span className="w-6 h-6 rounded-full bg-accent-blue/20 flex items-center justify-center text-[10px]">👤</span>
-                    )}
-                    <span className="font-medium truncate">{s.name}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
 
-          {/* Input 2: Whitelist */}
-          <div className="relative w-full mb-4">
-            <div className="flex items-center bg-bg-sidebar border border-border-theme rounded-md overflow-hidden">
-              <span className="px-2.5 text-text-secondary">⭐</span>
-              <input
-                value={whitelistInput}
-                onChange={(e) => setWhitelistInput(e.target.value)}
-                onFocus={() => setFocusedInput('whitelist')}
-                onBlur={() => setTimeout(() => setFocusedInput(null), 200)}
-                placeholder="Target channel to whitelist..."
-                className="flex-1 bg-transparent border-none text-text-primary py-2.5 outline-none text-[13px]"
-              />
-              <button
-                onClick={() => handleWhitelist(whitelistInput)}
-                className="bg-accent-blue text-white border-none px-4 py-2 cursor-pointer font-bold text-[13px]"
-              >
-                Whitelist
-              </button>
+            {/* Input 2: Whitelist */}
+            <div className="relative w-full">
+              <div className="flex items-center overflow-hidden" style={popupStyles.inputRow}>
+                <span className="px-2.5 text-text-secondary flex items-center justify-center" style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'rgba(255,255,255,0.02)', margin: '4px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-500" style={{ opacity: 0.85 }}><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                </span>
+                <input
+                  value={whitelistInput}
+                  onChange={(e) => setWhitelistInput(e.target.value)}
+                  onFocus={() => setFocusedInput('whitelist')}
+                  onBlur={() => setTimeout(() => setFocusedInput(null), 200)}
+                  placeholder="Target channel to whitelist..."
+                  className="flex-1 bg-transparent border-none text-text-primary py-2.5 outline-none text-[13px]"
+                  style={popupStyles.input}
+                />
+                <button
+                  onClick={() => handleWhitelist(whitelistInput)}
+                  className="border-none px-4 py-2.5 cursor-pointer font-bold text-[13px] mr-1.5"
+                  style={popupStyles.whitelistBtn}
+                >
+                  Whitelist
+                </button>
+              </div>
+              {focusedInput === 'whitelist' && suggestions.length > 0 && (
+                <ul className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border-theme rounded-md p-0 m-0 list-none z-50 max-h-[120px] overflow-y-auto shadow-lg">
+                  {suggestions.map((s, i) => (
+                    <li
+                      key={i}
+                      onMouseDown={(e) => { e.preventDefault(); handleWhitelist(s); }}
+                      className="p-3 cursor-pointer border-b border-border-theme text-[14px] text-text-primary hover:bg-bg-hover flex items-center gap-2.5"
+                    >
+                      {s.thumbnail ? (
+                        <img
+                          src={s.thumbnail}
+                          alt={s.name}
+                          className="w-6 h-6 rounded-full object-cover border border-white/10"
+                        />
+                      ) : (
+                        <span className="w-6 h-6 rounded-full bg-accent-blue/20 flex items-center justify-center text-[10px]">👤</span>
+                      )}
+                      <span className="font-medium truncate">{s.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            {focusedInput === 'whitelist' && suggestions.length > 0 && (
-              <ul className="absolute top-full left-0 right-0 mt-1 bg-bg-card border border-border-theme rounded-md p-0 m-0 list-none z-50 max-h-[120px] overflow-y-auto shadow-lg">
-                {suggestions.map((s, i) => (
-                  <li
-                    key={i}
-                    onMouseDown={(e) => { e.preventDefault(); handleWhitelist(s); }}
-                    className="p-3 cursor-pointer border-b border-border-theme text-[14px] text-text-primary hover:bg-bg-hover flex items-center gap-2.5"
-                  >
-                    {s.thumbnail ? (
-                      <img
-                        src={s.thumbnail}
-                        alt={s.name}
-                        className="w-6 h-6 rounded-full object-cover border border-white/10"
-                      />
-                    ) : (
-                      <span className="w-6 h-6 rounded-full bg-accent-blue/20 flex items-center justify-center text-[10px]">👤</span>
-                    )}
-                    <span className="font-medium truncate">{s.name}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
 
           {/* Stats Badge */}
-          <div className="flex justify-center my-4">
-            <span className="bg-bg-sidebar px-4 py-2 rounded-full text-[12px] font-semibold border border-border-theme text-accent-blue">
-              {channels.length} Blocked &nbsp;|&nbsp; {whitelistedChannels.length} Whitelisted
+          <div className="flex justify-center my-2">
+            <span className="px-4 py-2 text-[12px] font-semibold flex items-center" style={popupStyles.statsPill}>
+              <span className="text-accent-blue">{channels.length} Blocked</span>
+              <span className="mx-2" style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
+              <span className="text-accent-blue">{whitelistedChannels.length} Whitelisted</span>
             </span>
           </div>
 
           {/* Open Dashboard */}
-          <button onClick={openDashboard} className="mt-auto w-full py-3 bg-accent-blue text-white border-none rounded-md cursor-pointer font-semibold text-sm hover:opacity-90 transition-opacity">
-            🚀 Open Full Dashboard
+          <button onClick={openDashboard} className="w-full py-3.5 cursor-pointer font-semibold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2" style={popupStyles.dashboardBtn}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-pulse"><path d="M4.5 16.5c-1.5 1.25-2.5 3-2.5 4.5h20c0-1.5-1-3.25-2.5-4.5M12 2C8.5 2 6 5.5 6 9v5h12V9c0-3.5-2.5-7-6-7zM9 22h6"/></svg>
+            Open Full Dashboard
           </button>
         </div>
         {showToast && (

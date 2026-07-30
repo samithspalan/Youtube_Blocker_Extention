@@ -964,13 +964,21 @@ export default function App() {
 
             {/* Dual Chart Layout using Recharts AnalyticsCharts */}
             <AnalyticsCharts
-              barData={analyticsData.map(item => ({
-                handle: item.handle,
-                name: item.handle,
-                blockCount: item.blockCount,
-                count: item.blockCount,
-                profilePic: item.profilePic || item.thumbnail || item.avatar || ''
-              }))}
+              barData={analyticsData
+                .filter(item => {
+                  const normalizedHandle = item.handle.toLowerCase().replace('@', '').trim();
+                  return channels.some(ch => {
+                    const chName = (typeof ch === 'string' ? ch : ch.handle || ch.name || '').toLowerCase().replace('@', '').trim();
+                    return chName === normalizedHandle;
+                  });
+                })
+                .map(item => ({
+                  handle: item.handle,
+                  name: item.handle,
+                  blockCount: item.blockCount,
+                  count: item.blockCount,
+                  profilePic: item.profilePic || item.thumbnail || item.avatar || ''
+                }))}
               lineData={sevenDays}
             />
 

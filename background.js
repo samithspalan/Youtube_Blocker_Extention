@@ -374,3 +374,42 @@ chrome.idle.onStateChanged.addListener((state) => {
         flushTrackingSession();
     }
 });
+
+// Periodic heartbeat sync (every 10 seconds) to push active watch slices to DB in real-time
+setInterval(() => {
+    if (currentTracking.channelName && currentTracking.startTime) {
+        const durationMs = Date.now() - currentTracking.startTime;
+        if (durationMs >= 1000) {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            
+            const payload = {
+                channelName: currentTracking.channelName,
+                category: currentTracking.category,
+                durationMs: durationMs,
+                date: dateStr
+            };
+            
+            // Advance the tracker start time to the current moment to prevent double logging
+            currentTracking.startTime = Date.now();
+            
+            console.log(`⏱️ [Stealth Background] Heartbeat sync: logging ${durationMs}ms slice for ${currentTracking.channelName}`);
+            
+            fetch('http://localhost:5000/api/time/log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log("⏱️ [Stealth Background] Heartbeat logged successfully:", data);
+            })
+            .catch(err => {
+                console.error("⏱️ [Stealth Background] Heartbeat sync error:", err);
+            });
+        }
+    }
+}, 10000);

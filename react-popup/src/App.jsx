@@ -1336,8 +1336,8 @@ export default function App() {
             {/* Header row */}
             <div className="flex justify-between items-center mb-8">
               <div>
-                <h1 className="m-0 text-[24px] font-bold text-white tracking-tight">Analytics Dashboard</h1>
-                <p className="m-0 text-sm text-[#9ca3af] mt-1">Overview of your extension activity</p>
+                <h1 className="m-0 text-[24px] font-bold text-text-primary tracking-tight">Analytics Dashboard</h1>
+                <p className="m-0 text-sm text-text-secondary mt-1">Overview of your extension activity</p>
               </div>
               <button
                 onClick={() => {
@@ -1350,10 +1350,10 @@ export default function App() {
                     .catch(() => generateFallbackAnalytics())
                     .finally(() => setAnalyticsLoading(false));
                 }}
-                className="text-white px-4 py-2 flex items-center gap-2 cursor-pointer hover:bg-white/[0.08] transition-all"
+                className="text-text-primary px-4 py-2 flex items-center gap-2 cursor-pointer hover:opacity-80 transition-all"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: 'var(--glass-bg-pill)',
+                  border: '1px solid var(--glass-border-pill)',
                   borderRadius: '8px',
                   fontSize: '13px',
                   fontWeight: 500
@@ -1565,12 +1565,12 @@ export default function App() {
             <div
               className="overflow-hidden flex-1"
               style={{
-                background: 'rgba(15, 20, 30, 0.65)',
+                background: 'var(--table-card-bg)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                border: '1px solid var(--table-card-border)',
                 borderRadius: '16px',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.15)'
+                boxShadow: 'var(--table-card-shadow)'
               }}
             >
               <div className="p-5 border-b border-white/[0.04] flex justify-between items-center">
@@ -1600,8 +1600,8 @@ export default function App() {
                     {analyticsData.map((item, idx) => (
                       <tr 
                         key={item._id || idx} 
-                        className="hover:bg-white/[0.02] transition-colors"
-                        style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}
+                        className="hover:bg-bg-hover transition-colors"
+                        style={{ borderBottom: '1px solid var(--border-color)' }}
                       >
                         <td className="px-5 py-[15px] text-sm text-text-primary font-medium flex items-center">
                           <div className="w-7 h-7 rounded-full bg-[#1e3a8a] text-[#93c5fd] flex items-center justify-center text-xs font-bold mr-3" style={{ width: '28px', height: '28px', borderRadius: '50%' }}>

@@ -403,7 +403,11 @@ export default function App() {
   };
 
   const openDashboard = () => {
-    if (isChromeExtension) chrome.tabs.create({ url: chrome.runtime.getURL('react-popup/dist/index.html') });
+    if (isChromeExtension) {
+      chrome.tabs.create({ url: chrome.runtime.getURL('react-popup/dist/index.html') });
+    } else {
+      window.open('/#/dashboard', '_blank');
+    }
   };
 
   const getSevenDayStats = () => {

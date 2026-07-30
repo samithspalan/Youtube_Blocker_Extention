@@ -1,6 +1,7 @@
 // src/Dashboard.jsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import AnalyticsCharts from './AnalyticsCharts';
 
 export default function Dashboard() {
   const [stats, setStats] = useState([]);
@@ -35,6 +36,39 @@ export default function Dashboard() {
       { _id: 'mock-3', handle: 'PewDiePie', blockCount: 15, createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() },
     ]);
   };
+
+  const barData = stats.map(item => ({
+    handle: item.handle,
+    blockCount: item.blockCount
+  }));
+
+  const getLineData = () => {
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const today = new Date();
+    const result = [];
+    
+    const dailyCounts = {};
+    stats.forEach(item => {
+      if (item.createdAt) {
+        const d = new Date(item.createdAt);
+        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        dailyCounts[dateKey] = (dailyCounts[dateKey] || 0) + item.blockCount;
+      }
+    });
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const count = dailyCounts[dateKey] || 0;
+      result.push({
+        label: daysOfWeek[d.getDay()],
+        count: count
+      });
+    }
+    return result;
+  };
+
+  const lineData = getLineData();
 
   return (
     <div
@@ -77,37 +111,40 @@ export default function Dashboard() {
             <span className="text-lg text-text-secondary animate-pulse">Querying database records...</span>
           </div>
         ) : (
-          <div className="bg-bg-card border border-border-theme rounded-xl overflow-hidden shadow-xl">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-bg-sidebar/55">
-                  {['TARGET HANDLE', 'TIMES BLOCKED (API COUNT)', 'FIRST BLOCKED DATE'].map((h) => (
-                    <th key={h} className="text-left px-6 py-4 text-text-secondary text-xs font-semibold tracking-wider uppercase border-b border-border-theme">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {stats.map((target, idx) => (
-                  <tr key={target._id || idx} className="border-b border-border-theme hover:bg-bg-hover transition-colors">
-                    <td className="px-6 py-4 text-sm font-semibold text-text-primary flex items-center">
-                      <span className="w-6 h-6 rounded-full bg-accent-blue/15 text-accent-blue text-xs font-bold flex items-center justify-center mr-3">
-                        {target.handle.slice(0, 2).toUpperCase()}
-                      </span>
-                      {target.handle}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium">
-                      <span className="bg-accent-red/10 text-accent-red px-3 py-1 rounded-full text-xs font-bold border border-accent-red/15">
-                        {target.blockCount} times
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-text-secondary font-medium">
-                      {new Date(target.createdAt).toLocaleString()}
-                    </td>
+          <>
+            <AnalyticsCharts barData={barData} lineData={lineData} />
+            <div className="bg-bg-card border border-border-theme rounded-xl overflow-hidden shadow-xl">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-bg-sidebar/55">
+                    {['TARGET HANDLE', 'TIMES BLOCKED (API COUNT)', 'FIRST BLOCKED DATE'].map((h) => (
+                      <th key={h} className="text-left px-6 py-4 text-text-secondary text-xs font-semibold tracking-wider uppercase border-b border-border-theme">{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {stats.map((target, idx) => (
+                    <tr key={target._id || idx} className="border-b border-border-theme hover:bg-bg-hover transition-colors">
+                      <td className="px-6 py-4 text-sm font-semibold text-text-primary flex items-center">
+                        <span className="w-6 h-6 rounded-full bg-accent-blue/15 text-accent-blue text-xs font-bold flex items-center justify-center mr-3">
+                          {target.handle.slice(0, 2).toUpperCase()}
+                        </span>
+                        {target.handle}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-medium">
+                        <span className="bg-accent-red/10 text-accent-red px-3 py-1 rounded-full text-xs font-bold border border-accent-red/15">
+                          {target.blockCount} times
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-text-secondary font-medium">
+                        {new Date(target.createdAt).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

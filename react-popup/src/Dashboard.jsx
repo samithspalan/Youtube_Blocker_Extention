@@ -39,7 +39,10 @@ export default function Dashboard() {
 
   const barData = stats.map(item => ({
     handle: item.handle,
-    blockCount: item.blockCount
+    name: item.handle,
+    blockCount: item.blockCount,
+    count: item.blockCount,
+    profilePic: item.profilePic || item.thumbnail || item.avatar || ''
   }));
 
   const getLineData = () => {
@@ -72,10 +75,24 @@ export default function Dashboard() {
 
   return (
     <div
-      className="min-h-screen flex flex-col font-sans py-10 px-8 text-text-primary"
-      style={{ background: 'radial-gradient(circle at 5% 20%, rgba(47,129,247,0.12), transparent 40%), var(--bg-dark)' }}
+      className="min-h-screen flex flex-col font-sans py-10 px-8 text-text-primary relative overflow-hidden"
+      style={{ background: 'transparent' }}
     >
-      <div className="max-w-5xl w-full mx-auto flex flex-col flex-1">
+      {/* Decorative Neon Mesh Blobs for Glassmorphism Contrast */}
+      <div 
+        className="absolute top-[-10%] left-[20%] w-[350px] h-[350px] rounded-full blur-[100px] pointer-events-none opacity-40 animate-pulse"
+        style={{ background: 'radial-gradient(circle, var(--accent-blue) 0%, transparent 70%)' }}
+      />
+      <div 
+        className="absolute bottom-[5%] right-[10%] w-[400px] h-[400px] rounded-full blur-[120px] pointer-events-none opacity-30"
+        style={{ background: 'radial-gradient(circle, var(--accent-green) 0%, transparent 70%)' }}
+      />
+      <div 
+        className="absolute top-[40%] right-[30%] w-[300px] h-[300px] rounded-full blur-[90px] pointer-events-none opacity-20"
+        style={{ background: 'radial-gradient(circle, rgba(139, 92, 246, 0.8) 0%, transparent 70%)' }}
+      />
+
+      <div className="max-w-5xl w-full mx-auto flex flex-col flex-1 relative z-10">
         {/* Navigation Link Back */}
         <div className="mb-6">
           <Link to="/" className="text-accent-blue hover:underline text-sm font-semibold flex items-center gap-1 cursor-pointer no-underline">
@@ -113,7 +130,16 @@ export default function Dashboard() {
         ) : (
           <>
             <AnalyticsCharts barData={barData} lineData={lineData} />
-            <div className="bg-bg-card border border-border-theme rounded-xl overflow-hidden shadow-xl">
+            <div 
+              className="rounded-xl overflow-hidden shadow-xl"
+              style={{
+                background: 'var(--glass-bg)',
+                border: '1px solid var(--glass-border)',
+                backdropFilter: 'blur(24px)',
+                WebkitBackdropFilter: 'blur(24px)',
+                boxShadow: 'var(--glass-shadow)'
+              }}
+            >
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-bg-sidebar/55">

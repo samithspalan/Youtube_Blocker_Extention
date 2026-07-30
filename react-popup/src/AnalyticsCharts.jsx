@@ -34,13 +34,60 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
+const ProfileChartTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    const fallbackPic = 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
+    const profilePic = data.profilePic || fallbackPic;
+    const name = data.name || data.handle || 'Unknown';
+    const value = payload[0].value;
+    
+    return (
+      <div
+        style={{
+          background: '#0d0e12',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          borderRadius: '8px',
+          padding: '12px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img
+            src={profilePic}
+            alt={name}
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              objectFit: 'cover',
+            }}
+            onError={(e) => {
+              e.target.src = fallbackPic;
+            }}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '13px' }}>
+              {name}
+            </span>
+            <span style={{ color: '#3b82f6', fontSize: '12px', marginTop: '2px' }}>
+              Videos Nuked: {value}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function AnalyticsCharts({ barData, lineData }) {
   const cardStyle = {
-    background: 'rgba(18, 22, 32, 0.75)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    borderRadius: '12px',
-    backdropFilter: 'blur(12px)',
-    WebkitBackdropFilter: 'blur(12px)',
+    background: 'var(--glass-bg)',
+    border: '1px solid var(--glass-border)',
+    borderRadius: '16px',
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)',
+    boxShadow: 'var(--glass-shadow)',
     padding: '20px',
     height: '320px',
     display: 'flex',
@@ -72,12 +119,16 @@ export default function AnalyticsCharts({ barData, lineData }) {
         <div style={{ flex: 1, width: '100%', minHeight: 0 }}>
           {barData && barData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
+              <BarChart data={barData} margin={{ top: 5, right: 5, left: -25, bottom: 60 }}>
                 <XAxis
-                  dataKey="handle"
+                  dataKey={barData[0]?.name !== undefined ? 'name' : 'handle'}
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#4b5563', fontSize: 11 }}
+                  tick={{ fill: '#6b7280', fontSize: 11 }}
+                  angle={-90}
+                  textAnchor="end"
+                  interval={0}
+                  dy={10}
                 />
                 <YAxis
                   axisLine={false}
@@ -85,9 +136,9 @@ export default function AnalyticsCharts({ barData, lineData }) {
                   tick={{ fill: '#4b5563', fontSize: 11 }}
                   allowDecimals={false}
                 />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255, 255, 255, 0.02)' }} />
+                <Tooltip content={<ProfileChartTooltip />} cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }} />
                 <Bar
-                  dataKey="blockCount"
+                  dataKey={barData[0]?.count !== undefined ? 'count' : 'blockCount'}
                   fill="#2563eb"
                   radius={[4, 4, 0, 0]}
                   name="Blocks"

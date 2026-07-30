@@ -6,10 +6,10 @@
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   color-scheme: dark;
-  --bg-dark: #111111;
-  --bg-sidebar: #1a1a1a;
+  --bg-dark: #0b0f19;
+  --bg-sidebar: #121620;
   --bg-card: #1c1c1c;
-  --bg-hover: #2a2a2a;
+  --bg-hover: #1e293b;
   --text-primary: #e1e4e8;
   --text-secondary: #8b949e;
   --accent-blue: #2f81f7;
@@ -17,18 +17,22 @@
   --accent-green: #2ea043;
   --border-color: #30363d;
 
-  /* Glassmorphism Variables - Light Mode by default */
-  --glass-bg: rgba(255, 255, 255, 0.15);
-  --glass-border: rgba(255, 255, 255, 0.4);
-  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
-}
+  /* Default theme variables (dark mode) */
+  --body-bg: radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.15), transparent 50%),
+             radial-gradient(circle at 85% 20%, rgba(239, 68, 68, 0.12), transparent 50%),
+             radial-gradient(circle at 50% 85%, rgba(59, 130, 246, 0.15), transparent 65%),
+             #0b0f19;
+  --glass-bg: rgba(20, 24, 44, 0.4);
+  --glass-bg-input: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 15px 35px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  --glass-bg-pill: rgba(0, 0, 0, 0.4);
+  --glass-border-pill: rgba(255, 255, 255, 0.08);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --glass-bg: rgba(20, 25, 30, 0.45);
-    --glass-border: rgba(255, 255, 255, 0.08);
-    --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
-  }
+  --table-card-bg: rgba(15, 20, 30, 0.65);
+  --table-card-border: rgba(255, 255, 255, 0.08);
+  --table-card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  --status-card-inset: rgba(255, 255, 255, 0.05);
 }
 
 :root[data-theme="light"] {
@@ -36,20 +40,52 @@
   --bg-dark: #f6f8fa;
   --bg-sidebar: #ffffff;
   --bg-card: #ffffff;
-  --bg-hover: #f3f4f6;
+  --bg-hover: #e5e7eb;
   --text-primary: #1f2328;
   --text-secondary: #656d76;
   --border-color: #d0d7de;
 
-  --glass-bg: rgba(255, 255, 255, 0.15);
-  --glass-border: rgba(255, 255, 255, 0.4);
-  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+  --body-bg: radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.08), transparent 55%),
+             radial-gradient(circle at 85% 20%, rgba(239, 68, 68, 0.06), transparent 55%),
+             radial-gradient(circle at 50% 85%, rgba(59, 130, 246, 0.07), transparent 60%),
+             #f3f4f6;
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-bg-input: rgba(0, 0, 0, 0.03);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-shadow: 0 15px 35px rgba(31, 41, 55, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  --glass-bg-pill: rgba(255, 255, 255, 0.6);
+  --glass-border-pill: rgba(0, 0, 0, 0.08);
+
+  --table-card-bg: rgba(255, 255, 255, 0.7);
+  --table-card-border: rgba(0, 0, 0, 0.06);
+  --table-card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+  --status-card-inset: rgba(0, 0, 0, 0.02);
 }
 
 :root[data-theme="dark"] {
-  --glass-bg: rgba(20, 25, 30, 0.45);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  color-scheme: dark;
+  --bg-dark: #0b0f19;
+  --bg-sidebar: #121620;
+  --bg-hover: #1e293b;
+  --text-primary: #e1e4e8;
+  --text-secondary: #8b949e;
+  --border-color: #30363d;
+
+  --body-bg: radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.15), transparent 50%),
+             radial-gradient(circle at 85% 20%, rgba(239, 68, 68, 0.12), transparent 50%),
+             radial-gradient(circle at 50% 85%, rgba(59, 130, 246, 0.15), transparent 65%),
+             #0b0f19;
+  --glass-bg: rgba(20, 24, 44, 0.4);
+  --glass-bg-input: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 15px 35px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  --glass-bg-pill: rgba(0, 0, 0, 0.4);
+  --glass-border-pill: rgba(255, 255, 255, 0.08);
+
+  --table-card-bg: rgba(15, 20, 30, 0.65);
+  --table-card-border: rgba(255, 255, 255, 0.08);
+  --table-card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  --status-card-inset: rgba(255, 255, 255, 0.05);
 }
 
 body, html {
@@ -59,7 +95,7 @@ body, html {
   height: 100vh;
   min-width: 350px;
   min-height: 400px;
-  background: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15), transparent 50%), radial-gradient(circle at 90% 80%, rgba(239, 68, 68, 0.12), transparent 50%), #0f1219;
+  background: var(--body-bg);
   color: var(--text-primary);
   overflow: hidden; /* We'll handle scrolling in inner containers */
 }

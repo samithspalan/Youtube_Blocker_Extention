@@ -5,13 +5,16 @@ const isChromeExtension = typeof chrome !== 'undefined' && !!chrome.storage;
 
 const styles = {
   container: {
-    background: 'var(--bg-dark)',
+    background: 'transparent',
     height: '100vh',
     overflow: 'hidden'
   },
   sidebar: {
-    backdropFilter: 'blur(20px)',
-    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%)',
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)',
+    background: 'var(--glass-bg)',
+    border: '1px solid var(--glass-border)',
+    boxShadow: 'var(--glass-shadow)',
     height: 'calc(100vh - 32px)',
     maxHeight: 'calc(100vh - 32px)',
     overflowY: 'auto',
@@ -31,14 +34,25 @@ const styles = {
   },
   card: {
     background: 'var(--glass-bg)',
-    backdropFilter: 'blur(16px)',
-    WebkitBackdropFilter: 'blur(16px)',
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)',
     border: '1px solid var(--glass-border)',
-    boxShadow: 'var(--glass-shadow)'
+    boxShadow: 'var(--glass-shadow)',
+    borderRadius: '20px'
   }
 };
 
 export default function App() {
+  const getInitials = (handle) => {
+    if (!handle) return 'YT';
+    const clean = handle.replace(/^@/, '');
+    const parts = clean.split(/[\s.:_-]+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return clean.slice(0, 2).toUpperCase();
+  };
+
   const [channels, setChannels] = useState([]); // blocked channels
   const [whitelistedChannels, setWhitelistedChannels] = useState([]); // whitelisted channels
   const [input, setInput] = useState(''); // shared input for dashboard search
@@ -464,27 +478,27 @@ export default function App() {
   if (isPopup) {
     const popupStyles = {
       container: {
-        background: 'rgba(15, 20, 25, 0.45)',
+        background: 'var(--glass-bg)',
         backdropFilter: 'blur(24px) saturate(150%)',
         WebkitBackdropFilter: 'blur(24px) saturate(150%)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
+        border: '1px solid var(--glass-border)',
         borderRadius: '16px',
-        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.4)',
+        boxShadow: 'var(--glass-shadow)',
       },
       header: {
         background: 'transparent',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        borderBottom: '1px solid var(--glass-border)',
       },
       inputRow: {
-        background: 'rgba(255, 255, 255, 0.03)',
-        border: '1px solid rgba(255, 255, 255, 0.05)',
+        background: 'var(--glass-bg-input)',
+        border: '1px solid var(--glass-border)',
         borderRadius: '12px',
       },
       input: {
         background: 'transparent',
         border: 'none',
         outline: 'none',
-        color: 'white',
+        color: 'var(--text-primary)',
       },
       blockBtn: {
         background: 'rgba(239, 68, 68, 0.15)',
@@ -501,10 +515,10 @@ export default function App() {
         borderRadius: '8px',
       },
       statsPill: {
-        background: 'rgba(0, 0, 0, 0.4)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
+        background: 'var(--glass-bg-pill)',
+        border: '1px solid var(--glass-border-pill)',
         borderRadius: '9999px',
-        color: '#60a5fa',
+        color: 'var(--accent-blue)',
       },
       dashboardBtn: {
         background: 'rgba(59, 130, 246, 0.15)',
@@ -700,7 +714,7 @@ export default function App() {
 
       {/* ---- SIDEBAR ---- */}
       <div
-        className="flex flex-col w-[240px] m-4 rounded-2xl py-5 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
+        className="flex flex-col w-[240px] m-4 rounded-[20px] py-5 relative z-10"
         style={styles.sidebar}
       >
         {/* Logo */}
@@ -725,33 +739,54 @@ export default function App() {
             <p className="text-[11px] font-bold text-text-secondary px-5 mb-2 tracking-widest">MAIN</p>
             <button
               onClick={() => setActiveTab('command')}
-              className={`flex items-center px-5 py-2.5 text-sm cursor-pointer border-none bg-transparent text-left outline-none transition-all ${
-                activeTab === 'command'
-                  ? 'text-text-primary bg-bg-hover border-l-[3px] border-accent-blue font-semibold'
-                  : 'text-text-secondary border-l-[3px] border-transparent hover:bg-bg-hover'
-              }`}
+              className="flex items-center px-5 py-2.5 text-sm cursor-pointer border-none bg-transparent text-left outline-none transition-all w-[calc(100%-20px)] mx-2.5"
+              style={activeTab === 'command' ? {
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)',
+                border: '1px solid rgba(96, 165, 250, 0.3)',
+                boxShadow: 'inset 0 0 12px rgba(96, 165, 250, 0.2)',
+                borderRadius: '10px',
+                color: theme === 'dark' ? '#ffffff' : 'var(--accent-blue)',
+                fontWeight: '600'
+              } : {
+                color: 'var(--text-secondary)'
+              }}
             >
-              <span className="mr-3">⌘</span> Terminal
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mr-3" style={{ color: activeTab === 'command' ? 'var(--accent-blue)' : 'inherit' }}><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              Terminal
             </button>
             <button
               onClick={() => setActiveTab('whitelist')}
-              className={`flex items-center px-5 py-2.5 text-sm cursor-pointer border-none bg-transparent text-left outline-none transition-all ${
-                activeTab === 'whitelist'
-                  ? 'text-text-primary bg-bg-hover border-l-[3px] border-accent-blue font-semibold'
-                  : 'text-text-secondary border-l-[3px] border-transparent hover:bg-bg-hover'
-              }`}
+              className="flex items-center px-5 py-2.5 text-sm cursor-pointer border-none bg-transparent text-left outline-none transition-all w-[calc(100%-20px)] mx-2.5"
+              style={activeTab === 'whitelist' ? {
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)',
+                border: '1px solid rgba(96, 165, 250, 0.3)',
+                boxShadow: 'inset 0 0 12px rgba(96, 165, 250, 0.2)',
+                borderRadius: '10px',
+                color: theme === 'dark' ? '#ffffff' : 'var(--accent-blue)',
+                fontWeight: '600'
+              } : {
+                color: 'var(--text-secondary)'
+              }}
             >
-              <span className="mr-3">⭐</span> Whitelist
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mr-3" style={{ color: activeTab === 'whitelist' ? 'var(--accent-blue)' : 'inherit' }}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              Whitelist
             </button>
             <button
               onClick={() => setActiveTab('analytics')}
-              className={`flex items-center px-5 py-2.5 text-sm cursor-pointer border-none bg-transparent text-left outline-none transition-all ${
-                activeTab === 'analytics'
-                  ? 'text-text-primary bg-bg-hover border-l-[3px] border-accent-blue font-semibold'
-                  : 'text-text-secondary border-l-[3px] border-transparent hover:bg-bg-hover'
-              }`}
+              className="flex items-center px-5 py-2.5 text-sm cursor-pointer border-none bg-transparent text-left outline-none transition-all w-[calc(100%-20px)] mx-2.5"
+              style={activeTab === 'analytics' ? {
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)',
+                border: '1px solid rgba(96, 165, 250, 0.3)',
+                boxShadow: 'inset 0 0 12px rgba(96, 165, 250, 0.2)',
+                borderRadius: '10px',
+                color: theme === 'dark' ? '#ffffff' : 'var(--accent-blue)',
+                fontWeight: '600'
+              } : {
+                color: 'var(--text-secondary)'
+              }}
             >
-              <span className="mr-3">📊</span> Analytics
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mr-3" style={{ color: activeTab === 'analytics' ? 'var(--accent-blue)' : 'inherit' }}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              Analytics
             </button>
           </div>
 
@@ -775,12 +810,41 @@ export default function App() {
                 </button>
               </div>
             )}
+            
+            {/* Active Status Card */}
+            <div 
+              className="mx-4 mt-4 relative overflow-hidden"
+              style={{
+                background: 'var(--glass-bg)',
+                backdropFilter: 'blur(24px)',
+                WebkitBackdropFilter: 'blur(24px)',
+                borderRadius: '16px',
+                border: '1px solid var(--glass-border)',
+                boxShadow: 'inset 0 0 10px var(--status-card-inset)',
+                padding: '16px'
+              }}
+            >
+              <div className="flex items-center gap-1.5 mb-1 relative z-10">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#4ade80] animate-pulse" />
+                <span className="text-xs font-bold text-[#4ade80]">Active</span>
+              </div>
+              <p className="m-0 text-[11px] text-text-secondary relative z-10 leading-snug">Extension is running smoothly</p>
+              {/* Glowing Shield Icon */}
+              <div 
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-accent-blue/30"
+                style={{
+                  filter: 'drop-shadow(0 0 6px var(--accent-blue))'
+                }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+            </div>
           </div>
         </nav>
       </div>
 
       <div 
-        className="flex-1"
+        className="flex-1 relative z-10"
         style={styles.mainContent}
       >
         {activeTab === 'command' ? (
@@ -1271,7 +1335,10 @@ export default function App() {
           <>
             {/* Header row */}
             <div className="flex justify-between items-center mb-8">
-              <h1 className="m-0 text-2xl font-semibold text-text-primary">Analytics Dashboard</h1>
+              <div>
+                <h1 className="m-0 text-[24px] font-bold text-white tracking-tight">Analytics Dashboard</h1>
+                <p className="m-0 text-sm text-[#9ca3af] mt-1">Overview of your extension activity</p>
+              </div>
               <button
                 onClick={() => {
                   setAnalyticsLoading(true);
@@ -1283,50 +1350,238 @@ export default function App() {
                     .catch(() => generateFallbackAnalytics())
                     .finally(() => setAnalyticsLoading(false));
                 }}
-                className="bg-bg-sidebar border border-border-theme text-text-primary px-4 py-2 rounded-lg text-sm cursor-pointer hover:bg-bg-hover transition-all"
+                className="text-white px-4 py-2 flex items-center gap-2 cursor-pointer hover:bg-white/[0.08] transition-all"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: 500
+                }}
               >
-                🔄 Refresh Data
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                Refresh Data
               </button>
             </div>
 
             {/* Analytics Stats Cards */}
             <div className="grid grid-cols-3 gap-5 mb-8">
-              {[
-                {
-                  label: 'Total Blocking Events',
-                  value: analyticsData.reduce((acc, curr) => acc + (curr.blockCount || 0), 0),
-                  color: 'text-accent-blue'
-                },
-                {
-                  label: 'Most Blocked Target',
-                  value: analyticsData.length > 0 ? analyticsData[0].handle : 'None',
-                  color: 'text-accent-red'
-                },
-                {
-                  label: 'Connected Clients',
-                  value: 'Active',
-                  color: 'text-accent-green'
-                },
-              ].map(({ label, value, color }) => (
-                <div
-                  key={label}
-                  className="rounded-lg p-5 flex flex-col justify-center"
-                  style={styles.card}
-                >
-                  <h3 className="m-0 mb-2.5 text-[13px] text-text-secondary font-medium">{label}</h3>
-                  <p className={`m-0 text-2xl font-bold truncate ${color}`}>{value}</p>
+              {/* Card 1: Total Blocking Events */}
+              <div
+                className="p-5 flex flex-col relative overflow-hidden"
+                style={{
+                  ...styles.card,
+                  height: '145px',
+                  justifyContent: 'space-between',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <div className="flex justify-between items-start w-full relative z-10">
+                  <span style={{ color: '#9ca3af', fontSize: '12px', fontWeight: 500 }}>
+                    Total Blocking Events
+                  </span>
+                  <div
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: '#60a5fa'
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>
+                  </div>
                 </div>
-              ))}
+                <div className="relative z-10" style={{ marginTop: '10px' }}>
+                  <span style={{ fontSize: '32px', fontWeight: 'bold', color: '#60a5fa' }}>
+                    {analyticsData.reduce((acc, curr) => acc + (curr.blockCount || 0), 0)}
+                  </span>
+                </div>
+                <div className="relative z-10">
+                  <span style={{ color: '#9ca3af', fontSize: '11px' }}>All time total</span>
+                </div>
+                {/* Glowing radial wave background */}
+                <div 
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: '60px',
+                    pointerEvents: 'none',
+                    background: 'radial-gradient(ellipse at bottom, rgba(37, 99, 235, 0.25) 0%, transparent 70%)',
+                    zIndex: 1
+                  }}
+                />
+                {/* Wave Graphic */}
+                <svg viewBox="0 0 100 30" preserveAspectRatio="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, width: '100%', height: '40px', pointerEvents: 'none', overflow: 'visible', zIndex: 2 }}>
+                  <defs>
+                    <linearGradient id="wave-grad-blue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#2563eb" stopOpacity="0.4" />
+                      <stop offset="100%" stopColor="#2563eb" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M 0 30 C 20 20, 40 10, 60 22 C 80 30, 90 10, 100 5 L 100 30 L 0 30 Z" fill="url(#wave-grad-blue)" />
+                  <path d="M 0 30 C 20 20, 40 10, 60 22 C 80 30, 90 10, 100 5" stroke="#60a5fa" strokeWidth="3" fill="none" style={{ filter: 'drop-shadow(0 -2px 8px rgba(96, 165, 250, 0.5))' }} />
+                </svg>
+              </div>
+
+              {/* Card 2: Most Blocked Target */}
+              <div
+                className="p-5 flex flex-col relative overflow-hidden"
+                style={{
+                  ...styles.card,
+                  height: '145px',
+                  justifyContent: 'space-between',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <div className="flex justify-between items-start w-full relative z-10">
+                  <span style={{ color: '#9ca3af', fontSize: '12px', fontWeight: 500 }}>
+                    Most Blocked Target
+                  </span>
+                  <div
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: '#f87171'
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                  </div>
+                </div>
+                <div className="relative z-10" style={{ marginTop: '10px', overflow: 'hidden' }}>
+                  <span className="truncate block" style={{ fontSize: '20px', fontWeight: 'bold', color: '#f87171' }}>
+                    {analyticsData.length > 0 ? analyticsData[0].handle : 'None'}
+                  </span>
+                </div>
+                <div className="relative z-10">
+                  <span style={{ color: '#9ca3af', fontSize: '11px' }}>
+                    {analyticsData.length > 0 ? `Blocked ${analyticsData[0].blockCount} times` : 'Blocked 0 times'}
+                  </span>
+                </div>
+                {/* Glowing radial wave background */}
+                <div 
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: '60px',
+                    pointerEvents: 'none',
+                    background: 'radial-gradient(ellipse at bottom, rgba(220, 38, 38, 0.2) 0%, transparent 70%)',
+                    zIndex: 1
+                  }}
+                />
+                {/* Wave Graphic */}
+                <svg viewBox="0 0 100 30" preserveAspectRatio="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, width: '100%', height: '40px', pointerEvents: 'none', overflow: 'visible', zIndex: 2 }}>
+                  <defs>
+                    <linearGradient id="wave-grad-red" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#dc2424" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="#dc2424" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M 0 28 Q 30 22, 60 28 T 100 12 L 100 30 L 0 30 Z" fill="url(#wave-grad-red)" />
+                  <path d="M 0 28 Q 30 22, 60 28 T 100 12" stroke="#f87171" strokeWidth="3" fill="none" style={{ filter: 'drop-shadow(0 -2px 8px rgba(248, 113, 113, 0.5))' }} />
+                </svg>
+              </div>
+
+              {/* Card 3: Connected Clients */}
+              <div
+                className="p-5 flex flex-col relative overflow-hidden"
+                style={{
+                  ...styles.card,
+                  height: '145px',
+                  justifyContent: 'space-between',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <div className="flex justify-between items-start w-full relative z-10">
+                  <span style={{ color: '#9ca3af', fontSize: '12px', fontWeight: 500 }}>
+                    Connected Clients
+                  </span>
+                  <div
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: '#4ade80'
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  </div>
+                </div>
+                <div className="relative z-10" style={{ marginTop: '10px' }}>
+                  <span style={{ fontSize: '28px', fontWeight: 'bold', color: '#4ade80' }}>
+                    Active
+                  </span>
+                </div>
+                <div className="relative z-10">
+                  <span style={{ color: '#9ca3af', fontSize: '11px' }}>Currently connected</span>
+                </div>
+                {/* Glowing radial wave background */}
+                <div 
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: '60px',
+                    pointerEvents: 'none',
+                    background: 'radial-gradient(ellipse at bottom, rgba(22, 163, 74, 0.2) 0%, transparent 70%)',
+                    zIndex: 1
+                  }}
+                />
+                {/* Wave Graphic */}
+                <svg viewBox="0 0 100 30" preserveAspectRatio="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, width: '100%', height: '40px', pointerEvents: 'none', overflow: 'visible', zIndex: 2 }}>
+                  <defs>
+                    <linearGradient id="wave-grad-green" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#16a34a" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="#16a34a" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M 0 26 Q 30 30, 60 22 T 100 15 L 100 30 L 0 30 Z" fill="url(#wave-grad-green)" />
+                  <path d="M 0 26 Q 30 30, 60 22 T 100 15" stroke="#4ade80" strokeWidth="3" fill="none" style={{ filter: 'drop-shadow(0 -2px 8px rgba(74, 222, 128, 0.5))' }} />
+                </svg>
+              </div>
             </div>
 
             {/* Analytics Table */}
             <div
-              className="rounded-lg overflow-hidden flex-1"
-              style={styles.card}
+              className="overflow-hidden flex-1"
+              style={{
+                background: 'rgba(15, 20, 30, 0.65)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '16px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.15)'
+              }}
             >
-              <div className="p-5 border-b border-border-theme flex justify-between items-center">
-                <h3 className="m-0 text-base font-semibold text-text-primary">Block Triggers History</h3>
-                {analyticsLoading && <span className="text-sm text-text-secondary animate-pulse">Loading updates...</span>}
+              <div className="p-5 border-b border-white/[0.04] flex justify-between items-center">
+                <div className="flex items-center">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mr-2 text-accent-blue" style={{ filter: 'drop-shadow(0 0 4px var(--accent-blue))' }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <h3 className="m-0 text-base font-semibold text-text-primary">Block Triggers History</h3>
+                  {analyticsLoading && <span className="ml-3 text-xs text-text-secondary animate-pulse">Loading updates...</span>}
+                </div>
+                <div className="cursor-pointer text-text-secondary hover:text-text-primary p-1">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                </div>
               </div>
               {analyticsData.length === 0 ? (
                 <div className="p-10 text-center text-text-secondary text-sm">
@@ -1337,23 +1592,25 @@ export default function App() {
                   <thead>
                     <tr>
                       {['TARGET HANDLE', 'BLOCK COUNT', 'DATE INITIALIZED'].map((h, i) => (
-                        <th key={h} className="text-left px-5 py-3 text-text-secondary text-xs font-medium border-b border-border-theme">{h}</th>
+                        <th key={h} className="text-left px-5 py-3 text-text-secondary text-[11px] font-semibold uppercase tracking-wider border-b border-white/[0.04]" style={{ color: '#6b7280' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {analyticsData.map((item, idx) => (
-                      <tr key={item._id || idx} className="border-b border-border-theme hover:bg-bg-hover">
+                      <tr 
+                        key={item._id || idx} 
+                        className="hover:bg-white/[0.02] transition-colors"
+                        style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}
+                      >
                         <td className="px-5 py-[15px] text-sm text-text-primary font-medium flex items-center">
-                          <span className="w-6 h-6 rounded-full bg-accent-blue/15 text-accent-blue text-xs font-bold flex items-center justify-center mr-3">
-                            {item.handle.slice(0, 2).toUpperCase()}
-                          </span>
+                          <div className="w-7 h-7 rounded-full bg-[#1e3a8a] text-[#93c5fd] flex items-center justify-center text-xs font-bold mr-3" style={{ width: '28px', height: '28px', borderRadius: '50%' }}>
+                            {getInitials(item.handle)}
+                          </div>
                           {item.handle}
                         </td>
-                        <td className="px-5 py-[15px] text-sm">
-                          <span className="bg-accent-red/10 text-accent-red px-2 py-0.5 rounded-full text-xs font-semibold">
-                            {item.blockCount} times
-                          </span>
+                        <td className="px-5 py-[15px] text-sm font-semibold" style={{ color: '#f87171' }}>
+                          {item.blockCount} times
                         </td>
                         <td className="px-5 py-[15px] text-sm text-text-secondary">
                           {new Date(item.createdAt).toLocaleString()}

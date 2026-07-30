@@ -125,12 +125,12 @@ export default function App() {
 
   useEffect(() => {
     if (!isChromeExtension) return;
-    chrome.storage.local.get(['blockedChannels', 'whitelistedChannels', 'totalNukes', 'nukeHistory', 'totalWhitelistDisplayed', 'whitelistDisplayHistory'], (result) => {
+    chrome.storage.local.get(['blockedChannels', 'whitelistedChannels', 'totalNukes', 'nukeHistory', 'videosDisplayed', 'whitelistDisplayHistory'], (result) => {
       if (result.blockedChannels) setChannels(result.blockedChannels);
       if (result.whitelistedChannels) setWhitelistedChannels(result.whitelistedChannels);
       if (result.totalNukes !== undefined) setTotalNukes(result.totalNukes);
       if (result.nukeHistory) setNukeHistory(result.nukeHistory);
-      if (result.totalWhitelistDisplayed !== undefined) setTotalWhitelistDisplayed(result.totalWhitelistDisplayed);
+      if (result.videosDisplayed !== undefined) setTotalWhitelistDisplayed(result.videosDisplayed);
       if (result.whitelistDisplayHistory) setWhitelistDisplayHistory(result.whitelistDisplayHistory);
     });
 
@@ -140,7 +140,7 @@ export default function App() {
         if (changes.whitelistedChannels) setWhitelistedChannels(changes.whitelistedChannels.newValue || []);
         if (changes.totalNukes) setTotalNukes(changes.totalNukes.newValue || 0);
         if (changes.nukeHistory) setNukeHistory(changes.nukeHistory.newValue || {});
-        if (changes.totalWhitelistDisplayed) setTotalWhitelistDisplayed(changes.totalWhitelistDisplayed.newValue || 0);
+        if (changes.videosDisplayed) setTotalWhitelistDisplayed(changes.videosDisplayed.newValue || 0);
         if (changes.whitelistDisplayHistory) setWhitelistDisplayHistory(changes.whitelistDisplayHistory.newValue || {});
       }
     };
@@ -1404,29 +1404,9 @@ export default function App() {
                 <div className="relative z-10">
                   <span style={{ color: '#9ca3af', fontSize: '11px' }}>All time total</span>
                 </div>
-                {/* Glowing radial wave background */}
-                <div 
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: '60px',
-                    pointerEvents: 'none',
-                    background: 'radial-gradient(ellipse at bottom, rgba(37, 99, 235, 0.25) 0%, transparent 70%)',
-                    zIndex: 1
-                  }}
-                />
                 {/* Wave Graphic */}
-                <svg viewBox="0 0 100 30" preserveAspectRatio="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, width: '100%', height: '40px', pointerEvents: 'none', overflow: 'visible', zIndex: 2 }}>
-                  <defs>
-                    <linearGradient id="wave-grad-blue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2563eb" stopOpacity="0.4" />
-                      <stop offset="100%" stopColor="#2563eb" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path d="M 0 30 C 20 20, 40 10, 60 22 C 80 30, 90 10, 100 5 L 100 30 L 0 30 Z" fill="url(#wave-grad-blue)" />
-                  <path d="M 0 30 C 20 20, 40 10, 60 22 C 80 30, 90 10, 100 5" stroke="#60a5fa" strokeWidth="3" fill="none" style={{ filter: 'drop-shadow(0 -2px 8px rgba(96, 165, 250, 0.5))' }} />
+                <svg viewBox="0 0 100 30" preserveAspectRatio="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, width: '100%', height: '40px', pointerEvents: 'none', overflow: 'hidden', zIndex: 1 }}>
+                  <path d="M 0 30 C 20 20, 40 10, 60 22 C 80 30, 90 10, 100 5 L 100 30 L 0 30 Z" fill="rgba(37, 99, 235, 0.2)" />
                 </svg>
               </div>
 
@@ -1470,29 +1450,9 @@ export default function App() {
                     {analyticsData.length > 0 ? `Blocked ${analyticsData[0].blockCount} times` : 'Blocked 0 times'}
                   </span>
                 </div>
-                {/* Glowing radial wave background */}
-                <div 
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: '60px',
-                    pointerEvents: 'none',
-                    background: 'radial-gradient(ellipse at bottom, rgba(220, 38, 38, 0.2) 0%, transparent 70%)',
-                    zIndex: 1
-                  }}
-                />
                 {/* Wave Graphic */}
-                <svg viewBox="0 0 100 30" preserveAspectRatio="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, width: '100%', height: '40px', pointerEvents: 'none', overflow: 'visible', zIndex: 2 }}>
-                  <defs>
-                    <linearGradient id="wave-grad-red" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#dc2424" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#dc2424" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path d="M 0 28 Q 30 22, 60 28 T 100 12 L 100 30 L 0 30 Z" fill="url(#wave-grad-red)" />
-                  <path d="M 0 28 Q 30 22, 60 28 T 100 12" stroke="#f87171" strokeWidth="3" fill="none" style={{ filter: 'drop-shadow(0 -2px 8px rgba(248, 113, 113, 0.5))' }} />
+                <svg viewBox="0 0 100 30" preserveAspectRatio="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, width: '100%', height: '40px', pointerEvents: 'none', overflow: 'hidden', zIndex: 1 }}>
+                  <path d="M 0 28 Q 30 22, 60 28 T 100 12 L 100 30 L 0 30 Z" fill="rgba(220, 38, 38, 0.2)" />
                 </svg>
               </div>
 
@@ -1534,29 +1494,9 @@ export default function App() {
                 <div className="relative z-10">
                   <span style={{ color: '#9ca3af', fontSize: '11px' }}>Currently connected</span>
                 </div>
-                {/* Glowing radial wave background */}
-                <div 
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: '60px',
-                    pointerEvents: 'none',
-                    background: 'radial-gradient(ellipse at bottom, rgba(22, 163, 74, 0.2) 0%, transparent 70%)',
-                    zIndex: 1
-                  }}
-                />
                 {/* Wave Graphic */}
-                <svg viewBox="0 0 100 30" preserveAspectRatio="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, width: '100%', height: '40px', pointerEvents: 'none', overflow: 'visible', zIndex: 2 }}>
-                  <defs>
-                    <linearGradient id="wave-grad-green" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#16a34a" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#16a34a" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path d="M 0 26 Q 30 30, 60 22 T 100 15 L 100 30 L 0 30 Z" fill="url(#wave-grad-green)" />
-                  <path d="M 0 26 Q 30 30, 60 22 T 100 15" stroke="#4ade80" strokeWidth="3" fill="none" style={{ filter: 'drop-shadow(0 -2px 8px rgba(74, 222, 128, 0.5))' }} />
+                <svg viewBox="0 0 100 30" preserveAspectRatio="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, width: '100%', height: '40px', pointerEvents: 'none', overflow: 'hidden', zIndex: 1 }}>
+                  <path d="M 0 26 Q 30 30, 60 22 T 100 15 L 100 30 L 0 30 Z" fill="rgba(22, 163, 74, 0.2)" />
                 </svg>
               </div>
             </div>
@@ -1573,7 +1513,7 @@ export default function App() {
                 boxShadow: 'var(--table-card-shadow)'
               }}
             >
-              <div className="p-5 border-b border-white/[0.04] flex justify-between items-center">
+              <div className="p-5 border-b border-border-theme flex justify-between items-center">
                 <div className="flex items-center">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mr-2 text-accent-blue" style={{ filter: 'drop-shadow(0 0 4px var(--accent-blue))' }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   <h3 className="m-0 text-base font-semibold text-text-primary">Block Triggers History</h3>
@@ -1592,7 +1532,7 @@ export default function App() {
                   <thead>
                     <tr>
                       {['TARGET HANDLE', 'BLOCK COUNT', 'DATE INITIALIZED'].map((h, i) => (
-                        <th key={h} className="text-left px-5 py-3 text-text-secondary text-[11px] font-semibold uppercase tracking-wider border-b border-white/[0.04]" style={{ color: '#6b7280' }}>{h}</th>
+                        <th key={h} className="text-left px-5 py-3 text-text-secondary text-[11px] font-semibold uppercase tracking-wider border-b border-border-theme">{h}</th>
                       ))}
                     </tr>
                   </thead>

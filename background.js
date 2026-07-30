@@ -97,6 +97,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
+    if (request.type === "WHITELIST_VIDEOS_DISPLAYED" || request.action === "WHITELIST_VIDEOS_DISPLAYED") {
+        const countToAdd = request.count || 0;
+        console.log("📥 [Stealth Background] Received WHITELIST_VIDEOS_DISPLAYED message, count to add:", countToAdd);
+        chrome.storage.local.get(['videosDisplayed'], (result) => {
+            const currentTotal = result.videosDisplayed || 0;
+            const newTotal = currentTotal + countToAdd;
+            console.log("📥 [Stealth Background] Existing total:", currentTotal, "Updating total to:", newTotal);
+            chrome.storage.local.set({ videosDisplayed: newTotal }, () => {
+                sendResponse({ success: true, videosDisplayed: newTotal });
+            });
+        });
+        return true;
+    }
+
     if (request.action === "logWhitelistDisplayed") {
         const countToAdd = request.count || 0;
         chrome.storage.local.get(['totalWhitelistDisplayed', 'whitelistDisplayHistory'], (result) => {

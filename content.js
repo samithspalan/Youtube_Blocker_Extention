@@ -2,6 +2,7 @@ console.log("🚨 [Stealth Blocker] SCRIPT INJECTED SUCCESSFULLY!");
 
 let blockedHandles = new Set();
 let blockedNames = new Set();
+let loggedThisSession = false;
 
 // Helper to normalize and update internal blocked sets
 function updateBlockedLists(rawChannels) {
@@ -362,13 +363,21 @@ function renderWhitelistedFeed(container) {
                 `).join('');
 
                 // Log the displayed videos count to extension storage
-                chrome.runtime.sendMessage({ action: 'logWhitelistDisplayed', count: interleavedVideos.length }, (response) => {
-                    if (chrome.runtime.lastError) {
-                        console.log("Error sending logWhitelistDisplayed message:", chrome.runtime.lastError.message);
-                    } else {
-                        console.log("Logged whitelisted videos display count:", interleavedVideos.length);
-                    }
-                });
+                if (!loggedThisSession) {
+                    loggedThisSession = true;
+                    console.log("📤 [Stealth Content] Sending WHITELIST_VIDEOS_DISPLAYED message, count:", interleavedVideos.length);
+                    chrome.runtime.sendMessage({ 
+                        type: 'WHITELIST_VIDEOS_DISPLAYED', 
+                        action: 'WHITELIST_VIDEOS_DISPLAYED',
+                        count: interleavedVideos.length 
+                    }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            console.log("❌ [Stealth Content] Error sending WHITELIST_VIDEOS_DISPLAYED message:", chrome.runtime.lastError.message);
+                        } else {
+                            console.log("✅ [Stealth Content] Logged whitelisted videos display count successfully:", response);
+                        }
+                    });
+                }
             }
         }
     });

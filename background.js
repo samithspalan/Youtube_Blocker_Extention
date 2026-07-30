@@ -100,12 +100,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "WHITELIST_VIDEOS_DISPLAYED" || request.action === "WHITELIST_VIDEOS_DISPLAYED") {
         const countToAdd = request.count || 0;
         console.log("📥 [Stealth Background] Received WHITELIST_VIDEOS_DISPLAYED message, count to add:", countToAdd);
-        chrome.storage.local.get(['videosDisplayed'], (result) => {
-            const currentTotal = result.videosDisplayed || 0;
+        chrome.storage.local.get(['videosDisplayed', 'totalWhitelistDisplayed', 'whitelistDisplayHistory'], (result) => {
+            const currentTotal = result.videosDisplayed !== undefined ? result.videosDisplayed : (result.totalWhitelistDisplayed || 0);
             const newTotal = currentTotal + countToAdd;
+            
+            const whitelistHistory = result.whitelistDisplayHistory || {};
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            
+            whitelistHistory[dateStr] = (whitelistHistory[dateStr] || 0) + countToAdd;
+            
             console.log("📥 [Stealth Background] Existing total:", currentTotal, "Updating total to:", newTotal);
-            chrome.storage.local.set({ videosDisplayed: newTotal }, () => {
-                sendResponse({ success: true, videosDisplayed: newTotal });
+            chrome.storage.local.set({ 
+                videosDisplayed: newTotal,
+                totalWhitelistDisplayed: newTotal,
+                whitelistDisplayHistory: whitelistHistory
+            }, () => {
+                sendResponse({ success: true, videosDisplayed: newTotal, totalWhitelistDisplayed: newTotal, whitelistDisplayHistory: whitelistHistory });
             });
         });
         return true;

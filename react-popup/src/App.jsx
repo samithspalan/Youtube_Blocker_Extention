@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import AnalyticsCharts from './AnalyticsCharts';
 
 // Guard: true only when running as a real Chrome extension
 const isChromeExtension = typeof chrome !== 'undefined' && !!chrome.storage;
@@ -125,12 +126,15 @@ export default function App() {
 
   useEffect(() => {
     if (!isChromeExtension) return;
-    chrome.storage.local.get(['blockedChannels', 'whitelistedChannels', 'totalNukes', 'nukeHistory', 'videosDisplayed', 'whitelistDisplayHistory'], (result) => {
+    chrome.storage.local.get(['blockedChannels', 'whitelistedChannels', 'totalNukes', 'nukeHistory', 'videosDisplayed', 'totalWhitelistDisplayed', 'whitelistDisplayHistory'], (result) => {
       if (result.blockedChannels) setChannels(result.blockedChannels);
       if (result.whitelistedChannels) setWhitelistedChannels(result.whitelistedChannels);
       if (result.totalNukes !== undefined) setTotalNukes(result.totalNukes);
       if (result.nukeHistory) setNukeHistory(result.nukeHistory);
-      if (result.videosDisplayed !== undefined) setTotalWhitelistDisplayed(result.videosDisplayed);
+      
+      const count = result.videosDisplayed !== undefined ? result.videosDisplayed : result.totalWhitelistDisplayed;
+      if (count !== undefined) setTotalWhitelistDisplayed(count);
+      
       if (result.whitelistDisplayHistory) setWhitelistDisplayHistory(result.whitelistDisplayHistory);
     });
 
@@ -140,7 +144,13 @@ export default function App() {
         if (changes.whitelistedChannels) setWhitelistedChannels(changes.whitelistedChannels.newValue || []);
         if (changes.totalNukes) setTotalNukes(changes.totalNukes.newValue || 0);
         if (changes.nukeHistory) setNukeHistory(changes.nukeHistory.newValue || {});
-        if (changes.videosDisplayed) setTotalWhitelistDisplayed(changes.videosDisplayed.newValue || 0);
+        
+        if (changes.videosDisplayed) {
+          setTotalWhitelistDisplayed(changes.videosDisplayed.newValue || 0);
+        } else if (changes.totalWhitelistDisplayed) {
+          setTotalWhitelistDisplayed(changes.totalWhitelistDisplayed.newValue || 0);
+        }
+        
         if (changes.whitelistDisplayHistory) setWhitelistDisplayHistory(changes.whitelistDisplayHistory.newValue || {});
       }
     };
@@ -186,36 +196,36 @@ export default function App() {
   }, [currentQuery]);
 
   useEffect(() => {
-    if (activeTab === 'analytics') {
-      setAnalyticsLoading(true);
-      fetch('http://localhost:5000/api/blocks')
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.success && data.data) {
-            setAnalyticsData(data.data);
-          } else {
-            generateFallbackAnalytics();
-          }
-        })
-        .catch(err => {
-          console.log("Using fallback/mock analytics:", err);
+    setAnalyticsLoading(true);
+    fetch('http://localhost:5000/api/blocks')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success && data.data) {
+          setAnalyticsData(data.data);
+        } else {
           generateFallbackAnalytics();
-        })
-        .finally(() => {
-          setAnalyticsLoading(false);
-        });
-    }
-  }, [activeTab, channels]);
+        }
+      })
+      .catch(err => {
+        console.log("Using fallback/mock analytics:", err);
+        generateFallbackAnalytics();
+      })
+      .finally(() => {
+        setAnalyticsLoading(false);
+      });
+  }, [channels]);
 
   const generateFallbackAnalytics = () => {
     if (channels.length > 0) {
       const fallback = channels.map((ch, idx) => {
         const name = typeof ch === 'string' ? ch : ch.name || 'Unknown';
+        // Deterministic count based on name details to prevent random changes
+        const deterministicCount = ((name.length * 7) % 18) + 5;
         return {
           _id: `fallback-${idx}`,
           handle: name,
-          blockCount: Math.floor(Math.random() * 18) + 4,
-          createdAt: new Date(Date.now() - (idx * 24 * 60 * 60 * 1000 + Math.random() * 10000000)).toISOString()
+          blockCount: deterministicCount,
+          createdAt: new Date(Date.now() - (idx * 24 * 60 * 60 * 1000)).toISOString()
         };
       });
       setAnalyticsData(fallback.sort((a, b) => b.blockCount - a.blockCount));
@@ -931,109 +941,17 @@ export default function App() {
               ))}
             </div>
 
-            {/* Dual Chart Layout (50/50 Split - 2 Separate Glass Cards Side-by-Side) */}
-            <div
-              className="grid grid-cols-2 gap-5 mb-8"
-              style={{ height: '310px' }}
-            >
-              {/* Left Chart Card: Target Sequence */}
-              <div
-                className="rounded-lg p-5 flex flex-col h-full overflow-hidden"
-                style={styles.card}
-              >
-                <h3 className="m-0 mb-3 text-sm font-semibold text-text-primary uppercase tracking-wider">Target Sequence</h3>
-                {normalizedChannels.length === 0 ? (
-                  <div className="flex-1 flex items-center justify-center text-text-secondary text-sm">
-                    No targets mapped
-                  </div>
-                ) : (
-                  <div className="flex-1 flex items-end justify-around gap-2 pb-2 h-full overflow-x-auto">
-                    {normalizedChannels.map((channel, i) => {
-                      const heightPercent = Math.max(20, Math.min(100, ((channel.length * 7) + 20) % 100));
-                      return (
-                        <div
-                          key={i}
-                          className="relative group flex flex-col items-center flex-1 min-w-[20px] max-w-[40px] h-full justify-end"
-                        >
-                          <div
-                            className="w-full rounded-t opacity-45 hover:opacity-90 transition-all cursor-pointer"
-                            style={{
-                              height: `${heightPercent}%`,
-                              background: 'var(--accent-blue)',
-                              boxShadow: '0 0 6px rgba(47, 129, 247, 0.4)'
-                            }}
-                          />
-                          {/* Tooltip */}
-                          <div
-                            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none whitespace-nowrap shadow-lg"
-                            style={{
-                              background: '#18181b',
-                              color: '#fff',
-                              padding: '6px 10px',
-                              borderRadius: '6px',
-                              fontSize: '11px',
-                              fontWeight: '600',
-                              border: '1px solid rgba(255,255,255,0.1)'
-                            }}
-                          >
-                            {channel}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Right Chart Card: Intervention Frequency */}
-              <div
-                className="rounded-lg p-5 flex flex-col h-full"
-                style={styles.card}
-              >
-                <h3 className="m-0 mb-3 text-sm font-semibold text-text-primary uppercase tracking-wider">Intervention Frequency (7 Days)</h3>
-                <div className="flex-1 relative w-full flex flex-col justify-between">
-                  <svg className="w-full h-[210px]" viewBox="0 0 300 120" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--accent-blue)" stopOpacity="0.22" />
-                        <stop offset="100%" stopColor="var(--accent-blue)" stopOpacity="0.0" />
-                      </linearGradient>
-                      <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur stdDeviation="4" result="blur" />
-                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                      </filter>
-                    </defs>
-                    {/* Grid Lines */}
-                    <line x1="0" y1="30" x2="300" y2="30" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-                    <line x1="0" y1="60" x2="300" y2="60" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-                    <line x1="0" y1="90" x2="300" y2="90" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-
-                     {/* Area under the line (Dynamic) */}
-                     <path
-                       d={areaPath}
-                       fill="url(#areaGradient)"
-                     />
- 
-                     {/* Glowing Stroke Path (Dynamic) */}
-                     <path
-                       d={linePath}
-                       fill="none"
-                       stroke="var(--accent-blue)"
-                       strokeWidth="3.5"
-                       strokeLinecap="round"
-                       strokeOpacity="0.65"
-                       filter="url(#glow)"
-                     />
-                   </svg>
-                   {/* Axis labels (Dynamic Rolling Days) */}
-                   <div className="flex justify-between text-[10px] text-text-secondary font-medium mt-1.5 px-1">
-                     {sevenDays.map((d, i) => (
-                       <span key={i}>{d.label}</span>
-                     ))}
-                   </div>
-                </div>
-              </div>
-            </div>
+            {/* Dual Chart Layout using Recharts AnalyticsCharts */}
+            <AnalyticsCharts
+              barData={analyticsData.map(item => ({
+                handle: item.handle,
+                name: item.handle,
+                blockCount: item.blockCount,
+                count: item.blockCount,
+                profilePic: item.profilePic || item.thumbnail || item.avatar || ''
+              }))}
+              lineData={sevenDays}
+            />
 
             {/* Table */}
             <div
@@ -1173,109 +1091,26 @@ export default function App() {
               ))}
             </div>
 
-            {/* Dual Chart Layout (50/50 Split - 2 Separate Glass Cards Side-by-Side) */}
-            <div
-              className="grid grid-cols-2 gap-5 mb-8"
-              style={{ height: '310px' }}
-            >
-              {/* Left Chart Card: Whitelisted Target Sequence */}
-              <div
-                className="rounded-lg p-5 flex flex-col h-full overflow-hidden"
-                style={styles.card}
-              >
-                <h3 className="m-0 mb-3 text-sm font-semibold text-text-primary uppercase tracking-wider">Whitelisted Target Sequence</h3>
-                {whitelistedChannels.length === 0 ? (
-                  <div className="flex-1 flex items-center justify-center text-text-secondary text-sm">
-                    No whitelisted channels mapped
-                  </div>
-                ) : (
-                  <div className="flex-1 flex items-end justify-around gap-2 pb-2 h-full overflow-x-auto">
-                    {whitelistedChannels.map((ch, i) => {
-                      const name = typeof ch === 'string' ? ch : ch.name || 'Unknown';
-                      const heightPercent = Math.max(20, Math.min(100, ((name.length * 7) + 20) % 100));
-                      return (
-                        <div
-                          key={i}
-                          className="relative group flex flex-col items-center flex-1 min-w-[20px] max-w-[40px] h-full justify-end"
-                        >
-                          <div
-                            className="w-full rounded-t opacity-45 hover:opacity-90 transition-all cursor-pointer"
-                            style={{
-                              height: `${heightPercent}%`,
-                              background: 'var(--accent-blue)',
-                              boxShadow: '0 0 6px rgba(47, 129, 247, 0.4)'
-                            }}
-                          />
-                          <div
-                            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none whitespace-nowrap shadow-lg"
-                            style={{
-                              background: '#18181b',
-                              color: '#fff',
-                              padding: '6px 10px',
-                              borderRadius: '6px',
-                              fontSize: '11px',
-                              fontWeight: '600',
-                              border: '1px solid rgba(255,255,255,0.1)'
-                            }}
-                          >
-                            {name}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Right Chart Card: Videos Displayed Frequency */}
-              <div
-                className="rounded-lg p-5 flex flex-col h-full"
-                style={styles.card}
-              >
-                <h3 className="m-0 mb-3 text-sm font-semibold text-text-primary uppercase tracking-wider">Videos Displayed (7 Days)</h3>
-                <div className="flex-1 relative w-full flex flex-col justify-between">
-                  <svg className="w-full h-[210px]" viewBox="0 0 300 120" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="areaGradientWhitelist" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--accent-blue)" stopOpacity="0.22" />
-                        <stop offset="100%" stopColor="var(--accent-blue)" stopOpacity="0.0" />
-                      </linearGradient>
-                      <filter id="glowWhitelist" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur stdDeviation="4" result="blur" />
-                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                      </filter>
-                    </defs>
-                    {/* Grid Lines */}
-                    <line x1="0" y1="30" x2="300" y2="30" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-                    <line x1="0" y1="60" x2="300" y2="60" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-                    <line x1="0" y1="90" x2="300" y2="90" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-
-                    {/* Area under the line (Dynamic) */}
-                    <path
-                      d={areaPathWhitelist}
-                      fill="url(#areaGradientWhitelist)"
-                    />
-
-                    {/* Glowing Stroke Path (Dynamic) */}
-                    <path
-                      d={linePathWhitelist}
-                      fill="none"
-                      stroke="var(--accent-blue)"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                      strokeOpacity="0.65"
-                      filter="url(#glowWhitelist)"
-                    />
-                  </svg>
-                  {/* Axis labels (Dynamic Rolling Days) */}
-                  <div className="flex justify-between text-[10px] text-text-secondary font-medium mt-1.5 px-1">
-                    {sevenDaysWhitelist.map((d, i) => (
-                      <span key={i}>{d.label}</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* Dual Chart Layout using Recharts AnalyticsCharts */}
+            <AnalyticsCharts
+              barData={whitelistedChannels.map((ch, idx) => {
+                const name = typeof ch === 'string' ? ch : ch.name || ch.handle || 'Unknown';
+                const handle = typeof ch === 'string' ? ch : ch.handle || ch.name || 'Unknown';
+                // Deterministic mock count based on stable string details to prevent jumping
+                const deterministicCount = ((name.length * 5) % 15) + 4;
+                return {
+                  name: name,
+                  handle: handle,
+                  count: deterministicCount,
+                  profilePic: ch.profilePic || ch.thumbnail || ch.avatar || ''
+                };
+              })}
+              lineData={sevenDaysWhitelist}
+              barTitle="Whitelisted Target Sequence"
+              lineTitle="Videos Displayed (7 Days)"
+              barKey="count"
+              lineKey="count"
+            />
 
             {/* Table */}
             <div

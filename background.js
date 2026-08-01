@@ -100,6 +100,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     if (request.action === "recordNuke") {
+        const handle = request.handle;
         chrome.storage.local.get(['totalNukes', 'nukeHistory'], (result) => {
             const totalNukes = (result.totalNukes || 0) + 1;
             const nukeHistory = result.nukeHistory || {};
@@ -114,6 +115,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             nukeHistory[dateStr] = (nukeHistory[dateStr] || 0) + 1;
             
             chrome.storage.local.set({ totalNukes, nukeHistory }, () => {
+                if (handle) {
+                    fetch('http://localhost:5000/api/blocks', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ handle })
+                    })
+                    .then(res => res.json())
+                    .then(data => console.log(`[Stealth Background] Logged block for ${handle} to DB`, data))
+                    .catch(err => console.error(`[Stealth Background] Failed to log block to DB:`, err));
+                }
                 sendResponse({ success: true, totalNukes, nukeHistory });
             });
         });

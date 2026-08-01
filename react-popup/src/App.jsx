@@ -63,7 +63,7 @@ export default function App() {
   const [whitelistInput, setWhitelistInput] = useState(''); // popup whitelist input
   const [focusedInput, setFocusedInput] = useState(null); // 'block' | 'whitelist'
   const [suggestions, setSuggestions] = useState([]);
-  const [dbStatus, setDbStatus] = useState('Connected');
+  const [dbStatus, setDbStatus] = useState('Checking...');
   const [isPopup, setIsPopup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -121,6 +121,27 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    const checkDbStatus = () => {
+      fetch('http://localhost:5000/api/status')
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.success && data.dbConnected) {
+            setDbStatus('Connected');
+          } else {
+            setDbStatus('Disconnected');
+          }
+        })
+        .catch(() => {
+          setDbStatus('Disconnected');
+        });
+    };
+
+    checkDbStatus();
+    const interval = setInterval(checkDbStatus, 15000); // Check every 15 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (window.innerWidth < 600) setIsPopup(true);

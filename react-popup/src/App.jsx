@@ -148,39 +148,45 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!isChromeExtension) return;
-    chrome.storage.local.get(['blockedChannels', 'whitelistedChannels', 'totalNukes', 'nukeHistory', 'videosDisplayed', 'totalWhitelistDisplayed', 'whitelistDisplayHistory'], (result) => {
-      if (result.blockedChannels) setChannels(result.blockedChannels);
-      if (result.whitelistedChannels) setWhitelistedChannels(result.whitelistedChannels);
-      if (result.totalNukes !== undefined) setTotalNukes(result.totalNukes);
-      if (result.nukeHistory) setNukeHistory(result.nukeHistory);
-      
-      const count = result.videosDisplayed !== undefined ? result.videosDisplayed : result.totalWhitelistDisplayed;
-      if (count !== undefined) setTotalWhitelistDisplayed(count);
-      
-      if (result.whitelistDisplayHistory) setWhitelistDisplayHistory(result.whitelistDisplayHistory);
-    });
+    if (isChromeExtension) {
+      chrome.storage.local.get(['blockedChannels', 'whitelistedChannels', 'totalNukes', 'nukeHistory', 'videosDisplayed', 'totalWhitelistDisplayed', 'whitelistDisplayHistory'], (result) => {
+        if (result.blockedChannels) setChannels(result.blockedChannels);
+        if (result.whitelistedChannels) setWhitelistedChannels(result.whitelistedChannels);
+        if (result.totalNukes !== undefined) setTotalNukes(result.totalNukes);
+        if (result.nukeHistory) setNukeHistory(result.nukeHistory);
+        
+        const count = result.videosDisplayed !== undefined ? result.videosDisplayed : result.totalWhitelistDisplayed;
+        if (count !== undefined) setTotalWhitelistDisplayed(count);
+        
+        if (result.whitelistDisplayHistory) setWhitelistDisplayHistory(result.whitelistDisplayHistory);
+      });
 
-    const handleStorageChange = (changes, namespace) => {
-      if (namespace === 'local') {
-        if (changes.blockedChannels) setChannels(changes.blockedChannels.newValue || []);
-        if (changes.whitelistedChannels) setWhitelistedChannels(changes.whitelistedChannels.newValue || []);
-        if (changes.totalNukes) setTotalNukes(changes.totalNukes.newValue || 0);
-        if (changes.nukeHistory) setNukeHistory(changes.nukeHistory.newValue || {});
-        
-        if (changes.videosDisplayed) {
-          setTotalWhitelistDisplayed(changes.videosDisplayed.newValue || 0);
-        } else if (changes.totalWhitelistDisplayed) {
-          setTotalWhitelistDisplayed(changes.totalWhitelistDisplayed.newValue || 0);
+      const handleStorageChange = (changes, namespace) => {
+        if (namespace === 'local') {
+          if (changes.blockedChannels) setChannels(changes.blockedChannels.newValue || []);
+          if (changes.whitelistedChannels) setWhitelistedChannels(changes.whitelistedChannels.newValue || []);
+          if (changes.totalNukes) setTotalNukes(changes.totalNukes.newValue || 0);
+          if (changes.nukeHistory) setNukeHistory(changes.nukeHistory.newValue || {});
+          
+          if (changes.videosDisplayed) {
+            setTotalWhitelistDisplayed(changes.videosDisplayed.newValue || 0);
+          } else if (changes.totalWhitelistDisplayed) {
+            setTotalWhitelistDisplayed(changes.totalWhitelistDisplayed.newValue || 0);
+          }
+          
+          if (changes.whitelistDisplayHistory) setWhitelistDisplayHistory(changes.whitelistDisplayHistory.newValue || {});
         }
-        
-        if (changes.whitelistDisplayHistory) setWhitelistDisplayHistory(changes.whitelistDisplayHistory.newValue || {});
-      }
-    };
-    chrome.storage.onChanged.addListener(handleStorageChange);
-    return () => {
-      chrome.storage.onChanged.removeListener(handleStorageChange);
-    };
+      };
+      chrome.storage.onChanged.addListener(handleStorageChange);
+      return () => {
+        chrome.storage.onChanged.removeListener(handleStorageChange);
+      };
+    } else {
+      const localBlocked = localStorage.getItem('blockedChannels');
+      const localWhitelisted = localStorage.getItem('whitelistedChannels');
+      if (localBlocked) setChannels(JSON.parse(localBlocked));
+      if (localWhitelisted) setWhitelistedChannels(JSON.parse(localWhitelisted));
+    }
   }, []);
 
   const currentQuery = isPopup 
@@ -332,6 +338,7 @@ export default function App() {
       if (wasWhitelisted) {
         updatedWhitelisted = whitelistedChannels.filter(c => getCleanHandle(c) !== handle);
         setWhitelistedChannels(updatedWhitelisted);
+        localStorage.setItem('whitelistedChannels', JSON.stringify(updatedWhitelisted));
       }
 
       const blockExists = channels.some(c => getCleanHandle(c) === handle);
@@ -339,6 +346,7 @@ export default function App() {
       if (!blockExists) {
         const updatedBlocked = [...channels, blockObject];
         setChannels(updatedBlocked);
+        localStorage.setItem('blockedChannels', JSON.stringify(updatedBlocked));
         if (wasWhitelisted) {
           triggerToast(`Channel moved from Whitelist to Blocked`);
         } else {
@@ -417,6 +425,7 @@ export default function App() {
       if (wasBlocked) {
         updatedBlocked = channels.filter(c => getCleanHandle(c) !== handle);
         setChannels(updatedBlocked);
+        localStorage.setItem('blockedChannels', JSON.stringify(updatedBlocked));
       }
 
       const whitelistExists = whitelistedChannels.some(c => getCleanHandle(c) === handle);
@@ -424,6 +433,7 @@ export default function App() {
       if (!whitelistExists) {
         const updatedWhitelisted = [...whitelistedChannels, whitelistObject];
         setWhitelistedChannels(updatedWhitelisted);
+        localStorage.setItem('whitelistedChannels', JSON.stringify(updatedWhitelisted));
         if (wasBlocked) {
           triggerToast(`Channel moved from Blocked to Whitelist`);
         } else {
@@ -441,14 +451,22 @@ export default function App() {
     const handleToRemove = getCleanHandle(channelToRemove);
     const newChannels = channels.filter(c => getCleanHandle(c) !== handleToRemove);
     setChannels(newChannels);
-    if (isChromeExtension) chrome.storage.local.set({ blockedChannels: newChannels });
+    if (isChromeExtension) {
+      chrome.storage.local.set({ blockedChannels: newChannels });
+    } else {
+      localStorage.setItem('blockedChannels', JSON.stringify(newChannels));
+    }
   };
 
   const removeWhitelistedChannel = (channelToRemove) => {
     const handleToRemove = getCleanHandle(channelToRemove);
     const newWhitelisted = whitelistedChannels.filter(c => getCleanHandle(c) !== handleToRemove);
     setWhitelistedChannels(newWhitelisted);
-    if (isChromeExtension) chrome.storage.local.set({ whitelistedChannels: newWhitelisted });
+    if (isChromeExtension) {
+      chrome.storage.local.set({ whitelistedChannels: newWhitelisted });
+    } else {
+      localStorage.setItem('whitelistedChannels', JSON.stringify(newWhitelisted));
+    }
   };
 
   const openDashboard = () => {

@@ -14,7 +14,9 @@
   ],
   "host_permissions": [
     "*://suggestqueries.google.com/*",
-    "http://localhost/*"
+    "http://localhost/*",
+    "https://youtube-blocker-extention.onrender.com/*",
+    "https://youtube-blocker-extention-frontend.onrender.com/*"
   ],
   "background": {
     "service_worker": "background.js"

@@ -116,7 +116,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             
             chrome.storage.local.set({ totalNukes, nukeHistory }, () => {
                 if (handle) {
-                    fetch('http://localhost:5000/api/blocks', {
+                    fetch('https://youtube-blocker-extention.onrender.com/api/blocks', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ handle })
@@ -326,7 +326,7 @@ function flushTrackingSession() {
         
         console.log(`⏱️ [Stealth Background] Logging duration: ${durationMs}ms for channel ${currentTracking.channelName}`);
         
-        fetch('http://localhost:5000/api/time/log', {
+        fetch('https://youtube-blocker-extention.onrender.com/api/time/log', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -409,7 +409,7 @@ setInterval(() => {
             
             console.log(`⏱️ [Stealth Background] Heartbeat sync: logging ${durationMs}ms slice for ${currentTracking.channelName}`);
             
-            fetch('http://localhost:5000/api/time/log', {
+            fetch('https://youtube-blocker-extention.onrender.com/api/time/log', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)

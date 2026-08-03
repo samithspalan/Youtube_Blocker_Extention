@@ -124,7 +124,7 @@ export default function App() {
 
   useEffect(() => {
     const checkDbStatus = () => {
-      fetch('http://localhost:5000/api/status')
+      fetch('https://youtube-blocker-extention.onrender.com/api/status')
         .then(res => res.json())
         .then(data => {
           if (data && data.success && data.dbConnected) {
@@ -226,7 +226,7 @@ export default function App() {
 
   useEffect(() => {
     setAnalyticsLoading(true);
-    fetch('http://localhost:5000/api/blocks')
+    fetch('https://youtube-blocker-extention.onrender.com/api/blocks')
       .then(res => res.json())
       .then(data => {
         if (data && data.success && data.data) {
@@ -1265,7 +1265,7 @@ export default function App() {
               <button
                 onClick={() => {
                   setAnalyticsLoading(true);
-                  fetch('http://localhost:5000/api/blocks')
+                  fetch('https://youtube-blocker-extention.onrender.com/api/blocks')
                     .then(res => res.json())
                     .then(data => {
                       if (data?.success && data?.data) setAnalyticsData(data.data);

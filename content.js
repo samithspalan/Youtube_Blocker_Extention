@@ -469,7 +469,10 @@ function attemptScrape(videoId, retries = 0) {
         return;
     }
     
-    const channelName = channelNameEl.textContent.trim();
+    let channelName = channelNameEl.textContent.trim();
+    if (channelName.includes('\n')) {
+        channelName = channelName.split('\n')[0].trim();
+    }
     
     // Auto-Classification Heuristic
     const descriptionEl = document.querySelector('#description-inline-expander, ytd-text-inline-expander, #description');

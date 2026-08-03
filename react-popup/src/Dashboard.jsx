@@ -10,7 +10,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/blocks');
+        const response = await fetch('https://youtube-blocker-extention.onrender.com/api/blocks');
         const result = await response.json();
         
         if (result.success) {
@@ -109,7 +109,7 @@ export default function Dashboard() {
           <button
             onClick={() => {
               setLoading(true);
-              fetch('http://localhost:5000/api/blocks')
+              fetch('https://youtube-blocker-extention.onrender.com/api/blocks')
                 .then(res => res.json())
                 .then(data => {
                   if (data?.success && data?.data) setStats(data.data);

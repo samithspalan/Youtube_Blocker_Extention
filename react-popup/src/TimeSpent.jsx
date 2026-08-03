@@ -23,6 +23,13 @@ export default function TimeSpent() {
   const [error, setError] = useState(null);
   const [analyticsData, setAnalyticsData] = useState({ dailyTrend: [], breakdown: {}, channels: [] });
   const [filterType, setFilterType] = useState('Distraction');
+  const [selectedDayIndex, setSelectedDayIndex] = useState(null);
+
+  useEffect(() => {
+    if (analyticsData.dailyTrend && analyticsData.dailyTrend.length > 0) {
+      setSelectedDayIndex(analyticsData.dailyTrend.length - 1);
+    }
+  }, [analyticsData]);
 
   const fetchTimeAnalytics = async () => {
     try {
@@ -116,8 +123,12 @@ export default function TimeSpent() {
     );
   }
 
-  const studyVal = analyticsData.breakdown?.study || 0;
-  const distractionVal = analyticsData.breakdown?.distraction || 0;
+  const selectedDay = (analyticsData.dailyTrend && selectedDayIndex !== null)
+    ? analyticsData.dailyTrend[selectedDayIndex]
+    : null;
+
+  const studyVal = selectedDay ? (selectedDay.studyTime || 0) : 0;
+  const distractionVal = selectedDay ? (selectedDay.distractionTime || 0) : 0;
   const totalVal = studyVal + distractionVal || 1;
   
   const studyPct = Math.round((studyVal / totalVal) * 100);
@@ -132,7 +143,8 @@ export default function TimeSpent() {
     { name: 'Distraction', value: distractionVal, color: '#f87171' }
   ];
 
-  const filteredChannels = analyticsData.channels.filter(c => c.category === filterType);
+  const currentChannels = selectedDay ? (selectedDay.channels || []) : [];
+  const filteredChannels = currentChannels.filter(c => c.category === filterType);
   const totalCategoryTime = filteredChannels.reduce((sum, c) => sum + (c.timeSpent || 0), 0) || 1;
 
   return (
@@ -201,7 +213,22 @@ export default function TimeSpent() {
                     radius={[6, 6, 0, 0]}
                     barSize={30} 
                     activeBar={<CustomActiveBar />}
-                  />
+                    onClick={(data, index) => {
+                      if (index !== undefined) {
+                        setSelectedDayIndex(index);
+                      }
+                    }}
+                  >
+                    {(analyticsData.dailyTrend || []).map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        cursor="pointer"
+                        fill={index === selectedDayIndex ? '#3b82f6' : '#60a5fa'}
+                        stroke={index === selectedDayIndex ? '#ffffff' : 'none'}
+                        strokeWidth={index === selectedDayIndex ? 1.5 : 0}
+                      />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -222,11 +249,16 @@ export default function TimeSpent() {
             boxSizing: 'border-box'
           }}
         >
-          <h3 className="m-0 mb-3 text-sm font-semibold text-white uppercase tracking-wider">
-            Time Breakdown
+          <h3 className="m-0 mb-3 text-sm font-semibold text-white uppercase tracking-wider flex justify-between items-center">
+            <span>Time Breakdown</span>
+            {selectedDay && (
+              <span className="text-[11px] text-[#60a5fa] normal-case bg-[#60a5fa]/10 px-2 py-0.5 rounded font-normal">
+                {selectedDay.label} ({selectedDay.date.split('-').slice(1).join('/')})
+              </span>
+            )}
           </h3>
           <div className="flex-1 w-full min-h-0 relative flex items-center justify-center">
-            {totalVal > 1 ? (
+            {studyVal > 0 || distractionVal > 0 ? (
               <div className="w-full h-full flex flex-col items-center justify-between">
                 <div className="relative w-full h-[150px] flex items-center justify-center">
                   <ResponsiveContainer width="100%" height="100%">
@@ -277,7 +309,7 @@ export default function TimeSpent() {
                 </div>
               </div>
             ) : (
-              <div className="text-[#9ca3af] text-sm text-center">No watched durations loaded yet</div>
+              <div className="text-[#9ca3af] text-sm text-center">No watched durations loaded for {selectedDay ? selectedDay.label : 'this day'}</div>
             )}
           </div>
         </div>
@@ -320,7 +352,7 @@ export default function TimeSpent() {
               <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
             </svg>
             <h3 className="parent-title m-0 text-base font-semibold text-white">
-              Top Channels by Time Spent ({filterType})
+              Top Channels by Time Spent ({filterType}) {selectedDay && `• ${selectedDay.label}`}
             </h3>
           </div>
           <div className="cursor-pointer text-[#9ca3af] hover:text-white p-1">

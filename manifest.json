@@ -13,7 +13,8 @@
     "idle"
   ],
   "host_permissions": [
-    "*://suggestqueries.google.com/*"
+    "*://suggestqueries.google.com/*",
+    "http://localhost/*"
   ],
   "background": {
     "service_worker": "background.js"

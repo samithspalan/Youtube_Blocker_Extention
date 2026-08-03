@@ -266,7 +266,7 @@ export default function App() {
   const getCleanHandle = (item) => {
     if (!item) return '';
     const raw = typeof item === 'string' ? item : (item.handle || item.name || '');
-    return raw.replace('@', '').toLowerCase().trim();
+    return raw.replace('@', '').toLowerCase().replace(/\s+/g, '').trim();
   };
 
   const handleBlock = (targetData) => {
@@ -985,21 +985,25 @@ export default function App() {
 
             {/* Dual Chart Layout using Recharts AnalyticsCharts */}
             <AnalyticsCharts
-              barData={analyticsData
-                .filter(item => {
-                  const normalizedHandle = item.handle.toLowerCase().replace('@', '').trim();
-                  return channels.some(ch => {
-                    const chName = (typeof ch === 'string' ? ch : ch.handle || ch.name || '').toLowerCase().replace('@', '').trim();
-                    return chName === normalizedHandle;
-                  });
-                })
-                .map(item => ({
-                  handle: item.handle,
-                  name: item.handle,
-                  blockCount: item.blockCount,
-                  count: item.blockCount,
-                  profilePic: item.profilePic || item.thumbnail || item.avatar || ''
-                }))}
+              barData={channels.map(ch => {
+                const name = typeof ch === 'string' ? ch : ch.name || 'Unknown';
+                const handle = getCleanHandle(ch);
+                
+                const dbRecord = analyticsData.find(item => {
+                  const normalizedHandle = item.handle.toLowerCase().replace('@', '').replace(/\s+/g, '').trim();
+                  return normalizedHandle === handle;
+                });
+                
+                const count = dbRecord ? dbRecord.blockCount : 0;
+                
+                return {
+                  handle: handle,
+                  name: name,
+                  blockCount: count,
+                  count: count,
+                  profilePic: ch.profilePic || ch.thumbnail || ch.avatar || ''
+                };
+              })}
               lineData={sevenDays}
             />
 

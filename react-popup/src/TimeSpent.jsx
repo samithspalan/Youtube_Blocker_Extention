@@ -1,5 +1,22 @@
 import { useState, useEffect } from 'react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Rectangle } from 'recharts';
+
+const CustomActiveBar = (props) => {
+  const { x, y, width, height, ...rest } = props;
+  if (!height || height <= 0) return null;
+  const widthIncrease = 6;
+  const heightIncrease = 3;
+  return (
+    <Rectangle
+      {...rest}
+      x={x - widthIncrease / 2}
+      y={y - heightIncrease}
+      width={width + widthIncrease}
+      height={height + heightIncrease}
+      radius={[6, 6, 0, 0]}
+    />
+  );
+};
 
 export default function TimeSpent() {
   const [isLoading, setIsLoading] = useState(true);
@@ -173,6 +190,7 @@ export default function TimeSpent() {
                     tickFormatter={(val) => `${val}h`}
                   />
                   <Tooltip 
+                    cursor={false}
                     contentStyle={{ background: '#121620', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
                     labelStyle={{ color: '#fff', fontWeight: 'bold' }}
                     itemStyle={{ color: '#60a5fa' }}
@@ -182,6 +200,7 @@ export default function TimeSpent() {
                     fill="#60a5fa" 
                     radius={[6, 6, 0, 0]}
                     barSize={30} 
+                    activeBar={<CustomActiveBar />}
                   />
                 </BarChart>
               </ResponsiveContainer>
